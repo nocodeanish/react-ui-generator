@@ -22,16 +22,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Environment Setup
 - Node.js 18+ required (Node.js 25+ supported with instrumentation polyfill)
 - **REQUIRED for production**: Set `JWT_SECRET` in `.env` (generate with: `openssl rand -base64 32`)
-- **Recommended**: Add `ANTHROPIC_API_KEY` to `.env` for full AI functionality
+- **Provider API Keys** (at least one recommended for full AI functionality):
+  - `ANTHROPIC_API_KEY` - Anthropic Claude models
+  - `OPENAI_API_KEY` - OpenAI GPT models
+  - `GOOGLE_AI_API_KEY` - Google Gemini models
+  - `OPENROUTER_API_KEY` - OpenRouter (multi-provider access)
+  - `XAI_API_KEY` - xAI Grok models
+- Users can also add their own API keys via the Settings dialog (stored encrypted)
 - See `SECURITY.md` for complete security guidelines and deployment checklist
 
 ## Demo Mode (No API Key)
 
-When `ANTHROPIC_API_KEY` is not set, the app runs in **demo mode**:
+When no API key is available for the selected provider (neither environment variable nor user-stored key), the app runs in **demo mode**:
 - Uses a mock provider that generates static component templates
 - **Limited to 1 message per conversation** - users see a friendly prompt to add API key
 - Supports counter, form, and card component types
 - Input is disabled after first message with instructions to add API key
+- Users can add their own API keys via Settings to enable full functionality
 
 ## Architecture Overview
 
@@ -62,9 +69,13 @@ Three main flows interconnect:
 - `src/app/[projectId]/page.tsx` - Editor: main workspace with chat, code editor, and live preview
 - `src/app/layout.tsx` - Root layout with `suppressHydrationWarning` for browser extension compatibility
 - `src/components/chat/` - Chat UI: message list, markdown rendering, input with demo mode blocking
-- `src/components/editor/` - Code UI: Monaco editor, file tree navigation
+- `src/components/editor/` - Code UI: Monaco editor, file tree navigation, provider selector
+- `src/components/editor/ProviderSelector.tsx` - Dropdown to select AI provider and model per project
 - `src/components/preview/PreviewFrame.tsx` - Live preview iframe with sandbox security
 - `src/components/auth/` - Auth forms: sign in/up
+- `src/components/projects/ProjectList.tsx` - Project sidebar with rename, delete, delete all actions
+- `src/components/settings/SettingsDialog.tsx` - Dialog for managing user API keys across providers
+- `src/components/providers/theme-provider.tsx` - Theme context for dark/light mode
 
 **Core Utilities**:
 - `src/lib/file-system.ts` - VirtualFileSystem class with security limits (path validation, size limits, extension whitelist)
@@ -98,12 +109,20 @@ Three main flows interconnect:
 - `updatedAt` (DateTime) - Auto-updated on modifications
 - **Relations**: `projects` (one-to-many) - User can have multiple projects with CASCADE delete
 
+#### UserSettings Model
+- `id` (String, PK) - CUID, auto-generated
+- `userId` (String, FK, Unique) - References User.id with CASCADE delete
+- `apiKeys` (String) - Encrypted JSON of provider API keys (AES-256-GCM)
+- `createdAt`, `updatedAt` - Timestamps
+
 #### Project Model
 - `id` (String, PK) - CUID, auto-generated
 - `name` (String) - Project name, sanitized (max 100 chars, HTML stripped)
 - `userId` (String, FK, Optional) - References User.id. CASCADE delete removes project if user deleted
 - `messages` (String, JSON) - Serialized chat message history with safe parsing
 - `data` (String, JSON) - Serialized VirtualFileSystem state with safe parsing
+- `provider` (String) - AI provider ID (anthropic, openai, google, openrouter, xai). Default: "anthropic"
+- `model` (String) - Specific model ID. Empty string means use provider default
 - `createdAt` (DateTime) - Auto-set to creation time
 - `updatedAt` (DateTime) - Auto-updated on modifications
 
@@ -124,6 +143,10 @@ Three main flows interconnect:
 - `create-project.ts` - Creates new project with input sanitization
 - `get-project.ts` - Fetches project with safe JSON parsing and ownership validation
 - `get-projects.ts` - Lists authenticated user's projects
+- `rename-project.ts` - Renames project with sanitization and ownership validation
+- `delete-project.ts` - Deletes single project with ownership validation
+- `delete-all-projects.ts` - Deletes all projects for current user
+- `get-default-provider.ts` - Determines default provider based on available API keys (env → user settings → mock)
 
 ### Security Features
 
@@ -138,11 +161,45 @@ Three main flows interconnect:
 - Sign up: 3 attempts per hour per IP
 - Sign in: 5 attempts per 15 minutes per IP
 - Chat API (anonymous): 10 requests per hour per IP
+- Settings API: 10 changes per hour per user
 
 **Authentication Security**:
 - Timing attack prevention on login (always runs bcrypt.compare)
 - Generic error messages to prevent user enumeration
 - HTTP-only, secure cookies in production
+
+**API Key Security**:
+- User API keys encrypted with AES-256-GCM before database storage
+- Encryption key derived from `JWT_SECRET` using scrypt
+- Keys never sent to client; only last 4 characters shown for identification
+- Decryption only happens server-side when making API calls
+
+### Multi-Provider Architecture
+
+**Provider Registry** (`src/lib/providers/index.ts`):
+- Defines supported AI providers: Anthropic, OpenAI, Google AI, OpenRouter, xAI (Grok)
+- Each provider has: name, available models, default model, environment variable key
+- Exports type-safe `ProviderId` and utilities: `getDefaultModel()`, `getModelConfig()`, `isValidProvider()`
+
+**API Key Management**:
+- **Priority order**: Environment variable → User-stored key → Mock provider
+- Environment keys: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY`, `XAI_API_KEY`
+- User keys stored encrypted in `UserSettings.apiKeys`
+
+**Encryption** (`src/lib/crypto.ts`):
+- AES-256-GCM encryption for user API keys
+- Key derived from `JWT_SECRET` using scrypt (memory-hard)
+- Format: `salt:iv:authTag:encrypted` (all base64)
+- Keys never exposed to client - only last 4 chars shown for identification
+
+**Settings API** (`src/app/api/settings/route.ts`):
+- `GET`: Returns provider configuration status (configured, source: env/user, lastFour)
+- `POST`: Encrypts and saves API keys. Rate limited: 10 changes per hour per user
+- `DELETE`: Removes all user API keys
+
+**Project Settings API** (`src/app/api/project/[id]/settings/route.ts`):
+- `GET`: Returns project's provider and model
+- `PATCH`: Updates provider/model with validation. Resets model when provider changes
 
 ### Prompt & AI Integration
 
@@ -152,8 +209,9 @@ Three main flows interconnect:
 - Conventions: App.jsx as entry point, Tailwind CSS styling, @/ import alias for local files
 
 **Provider** (`src/lib/provider.ts`):
-- Returns Anthropic language model via Vercel AI SDK
-- Falls back to mock provider if ANTHROPIC_API_KEY not set
+- Returns language model for specified provider via Vercel AI SDK
+- Supports multiple providers: Anthropic, OpenAI, Google AI, OpenRouter, xAI
+- Falls back to mock provider if no API key available for selected provider
 - Mock provider generates counter, form, or card components based on user input
 
 ## Key Design Patterns
