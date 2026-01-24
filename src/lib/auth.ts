@@ -66,9 +66,9 @@ export async function getSession(): Promise<SessionPayload | null> {
   try {
     const { payload } = await jwtVerify(token, getJWTSecret());
     return payload as unknown as SessionPayload;
-  } catch (error) {
-    // Delete invalid or expired token
-    cookieStore.delete(COOKIE_NAME);
+  } catch {
+    // Invalid or expired token - just return null
+    // Cookie deletion happens via deleteSession() in server actions only
     return null;
   }
 }

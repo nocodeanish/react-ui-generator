@@ -6,7 +6,7 @@ import {
   createImportMap,
   createPreviewHTML,
 } from "@/lib/transform/jsx-transformer";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Zap, MonitorSmartphone } from "lucide-react";
 
 export function PreviewFrame() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -101,49 +101,38 @@ export function PreviewFrame() {
   if (error) {
     if (error === "firstLoad") {
       return (
-        <div className="h-full flex items-center justify-center p-8 bg-gray-50">
-          <div className="text-center max-w-md">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
-              <svg
-                className="h-8 w-8 text-blue-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
+        <div className="h-full flex items-center justify-center p-8">
+          <div className="text-center max-w-sm">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary mb-4">
+              <Zap className="h-6 w-6 text-primary-foreground" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Welcome to UI Generator
+            <h3 className="text-base font-semibold text-neutral-800 mb-2">
+              Live Preview
             </h3>
-            <p className="text-sm text-gray-600 mb-3">
-              Start building React components with AI assistance
+            <p className="text-sm text-neutral-500 mb-4">
+              Your component will appear here once generated
             </p>
-            <p className="text-xs text-gray-500">
-              Ask the AI to create your first component to see it live here
-            </p>
+            <div className="flex items-center justify-center gap-2 text-xs text-neutral-500">
+              <MonitorSmartphone className="h-3.5 w-3.5" />
+              <span>Real-time rendering</span>
+            </div>
           </div>
         </div>
       );
     }
 
     return (
-      <div className="h-full flex items-center justify-center p-8 bg-gray-50">
-        <div className="text-center max-w-md">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
-            <AlertCircle className="h-8 w-8 text-gray-400" />
+      <div className="h-full flex items-center justify-center p-8">
+        <div className="text-center max-w-sm">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-neutral-100 border border-neutral-200 mb-4">
+            <AlertCircle className="h-6 w-6 text-neutral-500" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <h3 className="text-base font-semibold text-neutral-800 mb-2">
             No Preview Available
           </h3>
-          <p className="text-sm text-gray-500">{error}</p>
-          <p className="text-xs text-gray-400 mt-2">
-            Start by creating a React component using the AI assistant
+          <p className="text-sm text-neutral-500">{error}</p>
+          <p className="text-xs text-neutral-400 mt-3">
+            Create a React component using the AI assistant
           </p>
         </div>
       </div>

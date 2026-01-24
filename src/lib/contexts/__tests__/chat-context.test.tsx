@@ -102,6 +102,8 @@ describe("ChatContext", () => {
       body: {
         files: mockFileSystem.serialize(),
         projectId: "test-project",
+        provider: "anthropic",
+        model: "",
       },
       onToolCall: expect.any(Function),
       onError: expect.any(Function),

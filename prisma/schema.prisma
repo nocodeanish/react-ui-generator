@@ -17,8 +17,19 @@ model User {
   password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   projects  Project[]
+  settings  UserSettings?
+}
+
+model UserSettings {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  apiKeys   String   @default("{}")  // Encrypted JSON: {"openai":"encrypted...","anthropic":"encrypted..."}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Project {
@@ -27,8 +38,10 @@ model Project {
   userId    String?
   messages  String   @default("[]")
   data      String   @default("{}")
+  provider  String   @default("anthropic")  // anthropic, openai, google, openrouter, xai
+  model     String   @default("")           // specific model ID (empty = provider default)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

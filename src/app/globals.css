@@ -44,80 +44,330 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ========================================
+   LIGHT MODE - ShareTalent Design System
+   ======================================== */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 0.5rem;
+
+  /* Background: #FFFEFA (off-white/cream) */
+  --background: #FFFEFA;
+  /* Text/Foreground: #002424 (dark teal) */
+  --foreground: #002424;
+
+  /* Card/Surface: #FFFFFF */
+  --card: #FFFFFF;
+  --card-foreground: #002424;
+
+  /* Popover */
+  --popover: #FFFFFF;
+  --popover-foreground: #002424;
+
+  /* Primary: #004449 (dark teal) with #FFFFFF contrast */
+  --primary: #004449;
+  --primary-foreground: #FFFFFF;
+
+  /* Secondary: #F3F4F6 / #FAFAFA (gray backgrounds) */
+  --secondary: #F3F4F6;
+  --secondary-foreground: #262429;
+
+  /* Muted: #FAFAFA with #A1A1AA text */
+  --muted: #FAFAFA;
+  --muted-foreground: #64748B;
+
+  /* Accent: #D7FFC2 (light green) */
+  --accent: #D7FFC2;
+  --accent-foreground: #14532D;
+
+  /* Destructive: #7F1D1D on #FEF2F2 */
+  --destructive: #7F1D1D;
+
+  /* Success: #14532D on #F0FDF4 */
+  --success: #14532D;
+  --success-background: #F0FDF4;
+
+  /* Warning: #F97316 on #FFEDD4 */
+  --warning: #F97316;
+  --warning-background: #FFEDD4;
+
+  /* Alert/Info: #1E3A8A on #EFF6FF */
+  --info: #1E3A8A;
+  --info-background: #EFF6FF;
+
+  /* Borders: #E1E4EA */
+  --border: #E1E4EA;
+  --input: #E1E4EA;
+  --ring: #004449;
+
+  /* Chart colors */
+  --chart-1: #004449;
+  --chart-2: #14532D;
+  --chart-3: #1E3A8A;
+  --chart-4: #F97316;
+  --chart-5: #7F1D1D;
+
+  /* Sidebar */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #002424;
+  --sidebar-primary: #004449;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F3F4F6;
+  --sidebar-accent-foreground: #002424;
+  --sidebar-border: #E1E4EA;
+  --sidebar-ring: #004449;
 }
 
+/* ========================================
+   DARK MODE - ShareTalent Design System
+   ======================================== */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Dark background based on primary colors */
+  --background: #0A1A1A;
+  --foreground: #FAFAFA;
+
+  /* Cards - slightly elevated */
+  --card: #0F2424;
+  --card-foreground: #FAFAFA;
+
+  /* Popovers */
+  --popover: #112828;
+  --popover-foreground: #FAFAFA;
+
+  /* Primary - lighter teal for dark mode */
+  --primary: #2DD4BF;
+  --primary-foreground: #002424;
+
+  /* Secondary */
+  --secondary: #1A2F2F;
+  --secondary-foreground: #F5F5F5;
+
+  /* Muted - brighter text for better readability */
+  --muted: #162626;
+  --muted-foreground: #A8B5C4;
+
+  /* Accent - green */
+  --accent: #0EFF80;
+  --accent-foreground: #002424;
+
+  /* Destructive */
+  --destructive: #EF4444;
+
+  /* Success */
+  --success: #22C55E;
+  --success-background: #14532D;
+
+  /* Warning */
+  --warning: #F97316;
+  --warning-background: #431407;
+
+  /* Info */
+  --info: #3B82F6;
+  --info-background: #1E3A8A;
+
+  /* Borders - slightly more visible */
+  --border: #2A4545;
+  --input: #2A4545;
+  --ring: #2DD4BF;
+
+  /* Chart colors */
+  --chart-1: #2DD4BF;
+  --chart-2: #22C55E;
+  --chart-3: #3B82F6;
+  --chart-4: #F97316;
+  --chart-5: #EF4444;
+
+  /* Sidebar */
+  --sidebar: #0D1E1E;
+  --sidebar-foreground: #F5F5F5;
+  --sidebar-primary: #2DD4BF;
+  --sidebar-primary-foreground: #002424;
+  --sidebar-accent: #1A2F2F;
+  --sidebar-accent-foreground: #F5F5F5;
+  --sidebar-border: #2A4545;
+  --sidebar-ring: #2DD4BF;
 }
 
+/* ========================================
+   BASE LAYER - Core element styling
+   ======================================== */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
+
+  /* Smooth color transitions for theme switching */
+  html {
+    transition: color-scheme 0.3s ease;
+  }
+
+  /* Improved scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.7 0 0 / 30%);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.5 0 0 / 40%);
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: oklch(0.5 0 0 / 30%);
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.6 0 0 / 40%);
+  }
+}
+
+/* ========================================
+   UTILITIES - Clean, minimal patterns
+   ======================================== */
+@layer utilities {
+  /* Subtle shadow - ShareTalent inspired */
+  .shadow-subtle {
+    box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06);
+  }
+
+  .dark .shadow-subtle {
+    box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Medium shadow */
+  .shadow-soft {
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.06), 0px 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  .dark .shadow-soft {
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2), 0px 1px 2px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Text balance for headings */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Hover lift effect - subtle */
+  .hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-1px);
+    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .dark .hover-lift:hover {
+    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.25);
+  }
+
+  /* Minimal glow - very subtle */
+  .glow-sm {
+    box-shadow: 0 0 0 1px var(--border);
+  }
+}
+
+/* ========================================
+   COMPONENT ENHANCEMENTS - Clean & Minimal
+   ======================================== */
+
+/* Enhanced focus states */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 3px var(--ring);
+}
+
+/* Card with subtle border */
+.card-elevated {
+  background-color: var(--card);
+  border-radius: var(--radius-lg);
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border);
+}
+
+.dark .card-elevated {
+  box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+/* Interactive card */
+.card-interactive {
+  background-color: var(--card);
+  border-radius: var(--radius-lg);
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid var(--border);
+}
+
+.card-interactive:hover {
+  border-color: var(--primary);
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.dark .card-interactive:hover {
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Pill badge */
+.badge-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+  background-color: var(--secondary);
+  color: var(--secondary-foreground);
+  border: 1px solid var(--border);
+}
+
+/* ========================================
+   PREVIEW CANVAS - Design Tool Style
+   ======================================== */
+
+/* Checkerboard pattern background for canvas area */
+.canvas-pattern {
+  --canvas-bg: #E5E7EB;
+  --canvas-pattern: #D1D5DB;
+  background-color: var(--canvas-bg);
+  background-image:
+    linear-gradient(45deg, var(--canvas-pattern) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--canvas-pattern) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--canvas-pattern) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--canvas-pattern) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+.dark .canvas-pattern {
+  --canvas-bg: #1A1A1A;
+  --canvas-pattern: #252525;
+}
+
+/* Preview artboard - the actual component render area */
+.preview-artboard {
+  background-color: #F5F5F5;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.dark .preview-artboard {
+  background-color: #F5F5F5;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.2);
 }

@@ -1,324 +1,119 @@
+// Multi-provider support for AI language models
+// Supports: Anthropic, OpenAI, Google AI, OpenRouter, xAI (Grok)
+
 import { anthropic } from "@ai-sdk/anthropic";
-import { experimental_createProviderRegistry as createProviderRegistry } from "ai";
+import { openai, createOpenAI } from "@ai-sdk/openai";
+import { google } from "@ai-sdk/google";
+import { xai } from "@ai-sdk/xai";
+import type { LanguageModelV1 } from "ai";
 
-const MODEL = "claude-haiku-4-5";
+import { PROVIDERS, type ProviderId, getDefaultModel } from "./providers";
+import { getMockLanguageModel } from "./providers/mock";
 
-// Simple mock provider for demo purposes (when no API key)
-// Returns static React component templates
-function createMockProvider() {
-  return {
-    textEmbeddingModel: () => {
-      throw new Error("Text embedding not supported in mock provider");
+// Create an OpenRouter client using OpenAI-compatible API
+function createOpenRouterClient(apiKey: string) {
+  return createOpenAI({
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey,
+    compatibility: "compatible", // Required for OpenRouter
+    headers: {
+      "HTTP-Referer": "https://uigen.app",
+      "X-Title": "UIGen",
     },
-    languageModel: (modelId: string) => {
-      return {
-        specificationVersion: "v1" as const,
-        provider: "mock",
-        modelId,
-        defaultObjectGenerationMode: undefined,
-
-        doGenerate: async (options: any) => {
-          const userMessage = extractUserMessage(options.prompt);
-          const componentType = detectComponentType(userMessage);
-
-          // If we've already made tool calls (tool results exist), just return completion text
-          if (hasToolResults(options.prompt)) {
-            const componentName = getComponentName(componentType);
-            return {
-              text: `I've created the ${componentName} component. You can see it in the preview!`,
-              toolCalls: [],
-              finishReason: "stop" as const,
-              usage: { promptTokens: 100, completionTokens: 50 },
-              warnings: [],
-              rawCall: { rawPrompt: options.prompt, rawSettings: {} },
-            };
-          }
-
-          return {
-            text: getMockResponse(componentType),
-            toolCalls: [
-              {
-                toolCallType: "function" as const,
-                toolCallId: "call_mock_1",
-                toolName: "str_replace_editor",
-                args: JSON.stringify({
-                  command: "create",
-                  path: "/App.jsx",
-                  file_text: getAppCode(componentType),
-                }),
-              },
-              {
-                toolCallType: "function" as const,
-                toolCallId: "call_mock_2",
-                toolName: "str_replace_editor",
-                args: JSON.stringify({
-                  command: "create",
-                  path: `/components/${getComponentName(componentType)}.jsx`,
-                  file_text: getComponentCode(componentType),
-                }),
-              },
-            ],
-            finishReason: "stop" as const,
-            usage: { promptTokens: 100, completionTokens: 200 },
-            warnings: [],
-            rawCall: { rawPrompt: options.prompt, rawSettings: {} },
-          };
-        },
-
-        doStream: async (options: any) => {
-          const userMessage = extractUserMessage(options.prompt);
-          const componentType = detectComponentType(userMessage);
-          const alreadyHasToolResults = hasToolResults(options.prompt);
-
-          const stream = new ReadableStream({
-            async start(controller) {
-              // If we've already made tool calls, just send completion message
-              if (alreadyHasToolResults) {
-                const componentName = getComponentName(componentType);
-                const completionText = `I've created the ${componentName} component. You can see it in the preview!`;
-                for (const char of completionText) {
-                  controller.enqueue({ type: "text-delta", textDelta: char });
-                  await new Promise(resolve => setTimeout(resolve, 15));
-                }
-                controller.enqueue({
-                  type: "finish",
-                  finishReason: "stop",
-                  usage: { promptTokens: 100, completionTokens: 50 },
-                });
-                controller.close();
-                return;
-              }
-
-              // First call: stream text and send tool calls
-              const text = getMockResponse(componentType);
-              for (const char of text) {
-                controller.enqueue({ type: "text-delta", textDelta: char });
-                await new Promise(resolve => setTimeout(resolve, 20));
-              }
-
-              // Send tool calls
-              controller.enqueue({
-                type: "tool-call",
-                toolCallType: "function",
-                toolCallId: "call_mock_1",
-                toolName: "str_replace_editor",
-                args: JSON.stringify({
-                  command: "create",
-                  path: "/App.jsx",
-                  file_text: getAppCode(componentType),
-                }),
-              });
-
-              controller.enqueue({
-                type: "tool-call",
-                toolCallType: "function",
-                toolCallId: "call_mock_2",
-                toolName: "str_replace_editor",
-                args: JSON.stringify({
-                  command: "create",
-                  path: `/components/${getComponentName(componentType)}.jsx`,
-                  file_text: getComponentCode(componentType),
-                }),
-              });
-
-              // Send finish event
-              controller.enqueue({
-                type: "finish",
-                finishReason: "stop",
-                usage: { promptTokens: 100, completionTokens: 200 },
-              });
-
-              controller.close();
-            },
-          });
-
-          return {
-            stream,
-            warnings: [],
-            rawCall: { rawPrompt: options.prompt, rawSettings: {} },
-          };
-        },
-      };
-    },
-  };
-}
-
-function extractUserMessage(prompt: any[]): string {
-  for (let i = prompt.length - 1; i >= 0; i--) {
-    if (prompt[i].role === "user") {
-      const content = prompt[i].content;
-      if (typeof content === "string") return content;
-      if (Array.isArray(content)) {
-        const textParts = content.filter((p: any) => p.type === "text");
-        return textParts.map((p: any) => p.text).join(" ");
-      }
-    }
-  }
-  return "";
-}
-
-// Check if tool calls have already been made (look for tool results in prompt)
-function hasToolResults(prompt: any[]): boolean {
-  return prompt.some((msg: any) => msg.role === "tool");
-}
-
-function detectComponentType(message: string): "form" | "card" | "counter" {
-  const lower = message.toLowerCase();
-  if (lower.includes("form")) return "form";
-  if (lower.includes("card")) return "card";
-  return "counter";
-}
-
-function getComponentName(type: string): string {
-  return type === "form" ? "ContactForm" : type === "card" ? "Card" : "Counter";
-}
-
-function getMockResponse(type: string): string {
-  return `I'll create a ${getComponentName(type)} component for you. Note: This is a static demo response. Add an ANTHROPIC_API_KEY to your .env file for real AI-powered component generation.`;
-}
-
-function getAppCode(type: string): string {
-  const componentName = getComponentName(type);
-  return `import ${componentName} from '@/components/${componentName}';
-
-export default function App() {
-  return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-8">
-      <div className="w-full max-w-md">
-        <${componentName} />
-      </div>
-    </div>
-  );
-}`;
-}
-
-function getComponentCode(type: string): string {
-  switch (type) {
-    case "form":
-      return `import { useState } from 'react';
-
-const ContactForm = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    message: ''
   });
+}
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    alert('Form submitted! (Demo mode)');
-  };
+/**
+ * Get a language model for the specified provider
+ * Falls back to mock provider if no API key is available
+ */
+export function getLanguageModel(
+  providerId: ProviderId = "anthropic",
+  modelId?: string,
+  apiKey?: string
+): LanguageModelV1 {
+  // Use default model if not specified
+  const model = modelId || getDefaultModel(providerId);
 
-  return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6">Contact Us</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-          <input
-            type="text"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-            value={formData.name}
-            onChange={(e) => setFormData({...formData, name: e.target.value})}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input
-            type="email"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-            value={formData.email}
-            onChange={(e) => setFormData({...formData, email: e.target.value})}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-          <textarea
-            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-            rows={4}
-            value={formData.message}
-            onChange={(e) => setFormData({...formData, message: e.target.value})}
-          />
-        </div>
-        <button
-          type="submit"
-          className="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
-        >
-          Send Message
-        </button>
-      </form>
-    </div>
-  );
-};
+  // If no API key provided, try environment variable
+  const key = apiKey || process.env[PROVIDERS[providerId].envKey];
 
-export default ContactForm;`;
+  // No API key available - use mock provider
+  if (!key || key.trim() === "") {
+    return getMockLanguageModel();
+  }
 
-    case "card":
-      return `const Card = ({
-  title = "Welcome",
-  description = "This is a demo card component"
-}) => {
-  return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden p-6">
-      <h3 className="text-xl font-semibold mb-2">{title}</h3>
-      <p className="text-gray-600 mb-4">{description}</p>
-      <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-        Learn More
-      </button>
-    </div>
-  );
-};
+  // Create provider-specific model
+  switch (providerId) {
+    case "anthropic":
+      return anthropic(model, { apiKey: key });
 
-export default Card;`;
+    case "openai":
+      return openai(model, { apiKey: key });
+
+    case "google":
+      return google(model, { apiKey: key });
+
+    case "openrouter": {
+      const client = createOpenRouterClient(key);
+      return client(model);
+    }
+
+    case "xai":
+      return xai(model, { apiKey: key });
 
     default:
-      return `import { useState } from 'react';
-
-const Counter = () => {
-  const [count, setCount] = useState(0);
-
-  return (
-    <div className="flex flex-col items-center p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-4">Counter</h2>
-      <div className="text-4xl font-bold mb-6">{count}</div>
-      <div className="flex gap-4">
-        <button
-          onClick={() => setCount(count - 1)}
-          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-        >
-          Decrease
-        </button>
-        <button
-          onClick={() => setCount(0)}
-          className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-        >
-          Reset
-        </button>
-        <button
-          onClick={() => setCount(count + 1)}
-          className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-        >
-          Increase
-        </button>
-      </div>
-    </div>
-  );
-};
-
-export default Counter;`;
+      // Fallback to mock provider for unknown providers
+      return getMockLanguageModel();
   }
 }
 
-export function getLanguageModel() {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-
-  if (!apiKey || apiKey.trim() === "") {
-    console.log("No ANTHROPIC_API_KEY found, using mock provider for demo");
-    const registry = createProviderRegistry({
-      mock: createMockProvider(),
-    });
-    return registry.languageModel("mock:demo");
+/**
+ * Check if a provider has an API key configured
+ * Checks both environment variable and user settings key
+ */
+export function hasApiKey(providerId: ProviderId, userApiKey?: string): boolean {
+  if (userApiKey && userApiKey.trim() !== "") {
+    return true;
   }
-
-  return anthropic(MODEL);
+  const envKey = process.env[PROVIDERS[providerId].envKey];
+  return !!envKey && envKey.trim() !== "";
 }
+
+/**
+ * Get the API key for a provider
+ * Priority: userApiKey > environment variable
+ */
+export function getApiKey(providerId: ProviderId, userApiKey?: string): string | undefined {
+  // User's key takes precedence
+  if (userApiKey && userApiKey.trim() !== "") {
+    return userApiKey;
+  }
+  // Fall back to environment variable
+  const envKey = process.env[PROVIDERS[providerId].envKey];
+  return envKey && envKey.trim() !== "" ? envKey : undefined;
+}
+
+/**
+ * Check if the current configuration is using the mock provider
+ */
+export function isMockProvider(providerId: ProviderId, userApiKey?: string): boolean {
+  return !hasApiKey(providerId, userApiKey);
+}
+
+/**
+ * Get list of configured providers (those with API keys available)
+ * Returns provider IDs that have either env or user API keys
+ */
+export function getConfiguredProviders(
+  userApiKeys?: Record<string, string>
+): ProviderId[] {
+  const providerIds = Object.keys(PROVIDERS) as ProviderId[];
+  return providerIds.filter((id) => {
+    const userKey = userApiKeys?.[id];
+    return hasApiKey(id, userKey);
+  });
+}
+
+// Re-export types and utilities
+export { PROVIDERS, type ProviderId } from "./providers";

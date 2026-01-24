@@ -1,23 +1,31 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
-import { getLanguageModel } from "../provider";
+import { getLanguageModel, isMockProvider, hasApiKey, getConfiguredProviders } from "../provider";
+import { PROVIDERS, type ProviderId } from "../providers";
 
 describe("Provider", () => {
-  const originalEnv = process.env.ANTHROPIC_API_KEY;
+  const originalEnv = { ...process.env };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Clear all provider API keys
+    Object.values(PROVIDERS).forEach((config) => {
+      delete process.env[config.envKey];
+    });
   });
 
   afterEach(() => {
-    process.env.ANTHROPIC_API_KEY = originalEnv;
+    // Restore original environment
+    Object.values(PROVIDERS).forEach((config) => {
+      if (originalEnv[config.envKey] !== undefined) {
+        process.env[config.envKey] = originalEnv[config.envKey];
+      } else {
+        delete process.env[config.envKey];
+      }
+    });
   });
 
   describe("Mock Provider (No API Key)", () => {
-    beforeEach(() => {
-      delete process.env.ANTHROPIC_API_KEY;
-    });
-
-    test("should return mock provider when ANTHROPIC_API_KEY is not set", () => {
+    test("should return mock provider when no API key is set", () => {
       const model = getLanguageModel();
       expect(model).toBeDefined();
       expect(model.provider).toBe("mock");
@@ -25,14 +33,14 @@ describe("Provider", () => {
 
     test("should return mock provider when ANTHROPIC_API_KEY is empty string", () => {
       process.env.ANTHROPIC_API_KEY = "";
-      const model = getLanguageModel();
+      const model = getLanguageModel("anthropic");
       expect(model).toBeDefined();
       expect(model.provider).toBe("mock");
     });
 
     test("should return mock provider when ANTHROPIC_API_KEY is whitespace", () => {
       process.env.ANTHROPIC_API_KEY = "   ";
-      const model = getLanguageModel();
+      const model = getLanguageModel("anthropic");
       expect(model).toBeDefined();
       expect(model.provider).toBe("mock");
     });
@@ -447,7 +455,7 @@ describe("Provider", () => {
   describe("Real Provider (With API Key)", () => {
     test("should return anthropic provider when ANTHROPIC_API_KEY is set", () => {
       process.env.ANTHROPIC_API_KEY = "sk-ant-test-key-123";
-      const model = getLanguageModel();
+      const model = getLanguageModel("anthropic");
 
       expect(model).toBeDefined();
       // Anthropic provider returns "anthropic.messages" as provider name
@@ -456,9 +464,85 @@ describe("Provider", () => {
 
     test("should not return mock provider when valid API key exists", () => {
       process.env.ANTHROPIC_API_KEY = "sk-ant-api-key-valid";
-      const model = getLanguageModel();
+      const model = getLanguageModel("anthropic");
 
       expect(model.provider).not.toBe("mock");
+    });
+
+    test("should use passed API key over environment variable", () => {
+      process.env.ANTHROPIC_API_KEY = "sk-ant-env-key";
+      const model = getLanguageModel("anthropic", undefined, "sk-ant-passed-key");
+
+      expect(model).toBeDefined();
+      expect(model.provider).toContain("anthropic");
+    });
+  });
+
+  describe("Multi-Provider Support", () => {
+    test("should return mock for OpenAI provider without API key", () => {
+      const model = getLanguageModel("openai");
+      expect(model.provider).toBe("mock");
+    });
+
+    test("should return OpenAI provider when OPENAI_API_KEY is set", () => {
+      process.env.OPENAI_API_KEY = "sk-test-openai-key";
+      const model = getLanguageModel("openai");
+      expect(model.provider).toContain("openai");
+    });
+
+    test("should return Google provider when GOOGLE_AI_API_KEY is set", () => {
+      process.env.GOOGLE_AI_API_KEY = "test-google-key";
+      const model = getLanguageModel("google");
+      expect(model.provider).toContain("google");
+    });
+
+    test("should return xAI provider when XAI_API_KEY is set", () => {
+      process.env.XAI_API_KEY = "xai-test-key";
+      const model = getLanguageModel("xai");
+      expect(model.provider).toContain("xai");
+    });
+  });
+
+  describe("Utility Functions", () => {
+    test("hasApiKey should return false when no key is set", () => {
+      expect(hasApiKey("anthropic")).toBe(false);
+      expect(hasApiKey("openai")).toBe(false);
+    });
+
+    test("hasApiKey should return true when env key is set", () => {
+      process.env.ANTHROPIC_API_KEY = "sk-ant-key";
+      expect(hasApiKey("anthropic")).toBe(true);
+    });
+
+    test("hasApiKey should return true when user key is provided", () => {
+      expect(hasApiKey("anthropic", "sk-ant-user-key")).toBe(true);
+    });
+
+    test("isMockProvider should return true when no API key", () => {
+      expect(isMockProvider("anthropic")).toBe(true);
+    });
+
+    test("isMockProvider should return false when API key exists", () => {
+      process.env.ANTHROPIC_API_KEY = "sk-ant-key";
+      expect(isMockProvider("anthropic")).toBe(false);
+    });
+
+    test("getConfiguredProviders should return empty array when no keys", () => {
+      expect(getConfiguredProviders()).toEqual([]);
+    });
+
+    test("getConfiguredProviders should return providers with env keys", () => {
+      process.env.ANTHROPIC_API_KEY = "sk-ant-key";
+      process.env.OPENAI_API_KEY = "sk-openai-key";
+      const configured = getConfiguredProviders();
+      expect(configured).toContain("anthropic");
+      expect(configured).toContain("openai");
+    });
+
+    test("getConfiguredProviders should include user-configured providers", () => {
+      const userKeys = { google: "user-google-key" };
+      const configured = getConfiguredProviders(userKeys);
+      expect(configured).toContain("google");
     });
   });
 });

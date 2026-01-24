@@ -1,5 +1,6 @@
 import { getUser } from "@/actions";
 import { getProject } from "@/actions/get-project";
+import { getProjects } from "@/actions/get-projects";
 import { MainContent } from "@/app/main-content";
 import { redirect } from "next/navigation";
 
@@ -23,5 +24,8 @@ export default async function ProjectPage({ params }: PageProps) {
     redirect("/");
   }
 
-  return <MainContent user={user} project={project} />;
+  // Fetch all projects for the sidebar
+  const projects = await getProjects();
+
+  return <MainContent user={user} project={project} projects={projects} />;
 }

@@ -2,22 +2,40 @@
 
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getDefaultProvider } from "./get-default-provider";
 
 interface CreateProjectInput {
-  name: string;
-  messages: any[];
-  data: Record<string, any>;
+  name?: string;
+  messages?: any[];
+  data?: Record<string, any>;
 }
 
-export async function createProject(input: CreateProjectInput) {
+/**
+ * Generate a user-friendly default project name
+ * Format: "Untitled Design 1", "Untitled Design 2", etc.
+ */
+async function generateDefaultName(userId: string): Promise<string> {
+  // Count existing projects to determine the next number
+  const count = await prisma.project.count({
+    where: { userId },
+  });
+
+  return `Untitled Design ${count + 1}`;
+}
+
+export async function createProject(input: CreateProjectInput = {}) {
   const session = await getSession();
 
   if (!session) {
     throw new Error("Unauthorized");
   }
 
-  // Validate and sanitize project name
-  let projectName = input.name?.trim() || "Untitled Project";
+  // Generate default name if not provided
+  let projectName = input.name?.trim();
+
+  if (!projectName) {
+    projectName = await generateDefaultName(session.userId);
+  }
 
   // Limit length
   if (projectName.length > 100) {
@@ -27,22 +45,26 @@ export async function createProject(input: CreateProjectInput) {
   // Remove any HTML/script tags for safety
   projectName = projectName.replace(/<[^>]*>/g, "");
 
-  // Validate messages is an array
-  if (!Array.isArray(input.messages)) {
-    throw new Error("Invalid messages format");
-  }
+  // Default to empty array for messages if not provided
+  const messages = Array.isArray(input.messages) ? input.messages : [];
 
-  // Validate data is an object
-  if (!input.data || typeof input.data !== "object" || Array.isArray(input.data)) {
-    throw new Error("Invalid data format");
-  }
+  // Default to empty object for data if not provided
+  const data =
+    input.data && typeof input.data === "object" && !Array.isArray(input.data)
+      ? input.data
+      : {};
+
+  // Get the default provider based on available API keys
+  const { provider, model } = await getDefaultProvider();
 
   const project = await prisma.project.create({
     data: {
       name: projectName,
       userId: session.userId,
-      messages: JSON.stringify(input.messages),
-      data: JSON.stringify(input.data),
+      messages: JSON.stringify(messages),
+      data: JSON.stringify(data),
+      provider,
+      model,
     },
   });
 

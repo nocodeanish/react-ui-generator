@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, KeyboardEvent } from "react";
-import { Send } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 
 interface MessageInputProps {
   input: string;
@@ -34,25 +34,52 @@ export function MessageInput({
   const buttonDisabled = isLoading || isDisabled || !input.trim();
 
   return (
-    <form onSubmit={handleSubmit} className="relative p-4 bg-white border-t border-neutral-200/60">
-      <div className="relative max-w-4xl mx-auto">
+    <form onSubmit={handleSubmit} className="relative">
+      <div className="relative">
         <textarea
           value={input}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           placeholder={isDisabled && disabledMessage ? disabledMessage : "Describe the React component you want to create..."}
           disabled={inputDisabled}
-          className={`w-full min-h-[80px] max-h-[200px] pl-4 pr-14 py-3.5 rounded-xl border border-neutral-200 bg-neutral-50/50 text-neutral-900 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-500/50 focus:bg-white transition-all placeholder:text-neutral-400 text-[15px] font-normal shadow-sm ${isDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+          className={`
+            w-full min-h-[100px] max-h-[200px] pl-4 pr-14 py-4
+            rounded-xl border border-border/50
+            bg-background/50 dark:bg-secondary/30
+            text-foreground resize-none
+            focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50
+            focus:bg-background dark:focus:bg-secondary/50
+            transition-all duration-200
+            placeholder:text-muted-foreground
+            text-[15px] font-normal
+            shadow-sm
+            ${isDisabled ? 'opacity-60 cursor-not-allowed' : ''}
+          `}
           rows={3}
         />
         <button
           type="submit"
           disabled={buttonDisabled}
-          className="absolute right-3 bottom-3 p-2.5 rounded-lg transition-all hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent group"
+          className={`
+            absolute right-3 bottom-3 p-3 rounded-xl
+            transition-all duration-200
+            disabled:opacity-40 disabled:cursor-not-allowed
+            ${buttonDisabled
+              ? 'bg-muted text-muted-foreground'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md glow-sm'
+            }
+          `}
         >
-          <Send className={`h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 ${buttonDisabled ? 'text-neutral-300' : 'text-blue-600'}`} />
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="h-4 w-4" />
+          )}
         </button>
       </div>
+      <p className="mt-2 text-xs text-muted-foreground text-center">
+        Press Enter to send, Shift+Enter for new line
+      </p>
     </form>
   );
 }

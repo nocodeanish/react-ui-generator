@@ -54,6 +54,8 @@ export async function getProject(projectId: string) {
     name: project.name,
     messages,
     data,
+    provider: project.provider,
+    model: project.model,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
   };

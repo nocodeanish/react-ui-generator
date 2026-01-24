@@ -33,6 +33,9 @@ vi.mock("lucide-react", () => ({
   FileCode: ({ className }: { className?: string }) => (
     <div className={className}>FileCode</div>
   ),
+  Files: ({ className }: { className?: string }) => (
+    <div className={className}>Files</div>
+  ),
 }));
 
 // Helper function to create a mock file system
@@ -59,7 +62,7 @@ test("FileTree renders empty state when no files exist", () => {
   render(<FileTree />);
 
   expect(screen.getByText("No files yet")).toBeDefined();
-  expect(screen.getByText("Files will appear here")).toBeDefined();
+  expect(screen.getByText("Files will appear here when generated")).toBeDefined();
 });
 
 test("FileTree renders files and directories", () => {
@@ -245,8 +248,8 @@ test("FileTreeNode highlights selected file", () => {
 
   // Find the div containing the file name
   const fileDiv = screen.getByText("selected.js").parentElement;
-  expect(fileDiv?.className).toContain("bg-blue-50");
-  expect(fileDiv?.className).toContain("text-blue-600");
+  expect(fileDiv?.className).toContain("bg-primary/10");
+  expect(fileDiv?.className).toContain("text-primary");
 });
 
 test("FileTree renders nested directory structure", () => {

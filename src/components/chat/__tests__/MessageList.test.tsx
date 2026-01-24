@@ -8,6 +8,22 @@ vi.mock("../MarkdownRenderer", () => ({
   MarkdownRenderer: ({ content }: { content: string }) => <div>{content}</div>,
 }));
 
+// Mock lucide-react icons
+vi.mock("lucide-react", () => ({
+  User: ({ className }: { className?: string }) => (
+    <div className={className}>User</div>
+  ),
+  Bot: ({ className }: { className?: string }) => (
+    <div className={className}>Bot</div>
+  ),
+  Loader2: ({ className }: { className?: string }) => (
+    <div className={className}>Loader2</div>
+  ),
+  Sparkles: ({ className }: { className?: string }) => (
+    <div className={className}>Sparkles</div>
+  ),
+}));
+
 afterEach(() => {
   cleanup();
 });
@@ -16,7 +32,7 @@ test("MessageList shows empty state when no messages", () => {
   render(<MessageList messages={[]} />);
 
   expect(
-    screen.getByText("Start a conversation to generate React components")
+    screen.getByText("Start creating React components")
   ).toBeDefined();
   expect(
     screen.getByText("I can help you create buttons, forms, cards, and more")
@@ -182,8 +198,8 @@ test("MessageList renders multiple messages in correct order", () => {
 
   const { container } = render(<MessageList messages={messages} />);
 
-  // Get all message containers in order
-  const messageContainers = container.querySelectorAll(".rounded-xl");
+  // Get all message containers in order (rounded-2xl is the new class)
+  const messageContainers = container.querySelectorAll(".rounded-2xl");
 
   // Verify we have 4 messages
   expect(messageContainers).toHaveLength(4);
@@ -218,7 +234,7 @@ test("MessageList handles step-start parts", () => {
   expect(screen.getByText("Step 1 content")).toBeDefined();
   expect(screen.getByText("Step 2 content")).toBeDefined();
   // Check that a separator exists (hr element)
-  const container = screen.getByText("Step 1 content").closest(".rounded-xl");
+  const container = screen.getByText("Step 1 content").closest(".rounded-2xl");
   expect(container?.querySelector("hr")).toBeDefined();
 });
 
@@ -238,18 +254,20 @@ test("MessageList applies correct styling for user vs assistant messages", () =>
 
   render(<MessageList messages={messages} />);
 
-  const userMessage = screen.getByText("User message").closest(".rounded-xl");
+  const userMessage = screen.getByText("User message").closest(".rounded-2xl");
   const assistantMessage = screen
     .getByText("Assistant message")
-    .closest(".rounded-xl");
+    .closest(".rounded-2xl");
 
-  // User messages should have blue background
-  expect(userMessage?.className).toContain("bg-blue-600");
-  expect(userMessage?.className).toContain("text-white");
+  // Both messages should have same background styling
+  expect(userMessage?.className).toContain("bg-secondary");
+  expect(userMessage?.className).toContain("text-secondary-foreground");
+  expect(assistantMessage?.className).toContain("bg-secondary");
+  expect(assistantMessage?.className).toContain("text-secondary-foreground");
 
-  // Assistant messages should have white background
-  expect(assistantMessage?.className).toContain("bg-white");
-  expect(assistantMessage?.className).toContain("text-neutral-900");
+  // User messages have rounded-br-md, assistant has rounded-bl-md
+  expect(userMessage?.className).toContain("rounded-br-md");
+  expect(assistantMessage?.className).toContain("rounded-bl-md");
 });
 
 test("MessageList handles empty content with parts", () => {
@@ -282,9 +300,9 @@ test("MessageList shows loading for assistant message with empty parts", () => {
   );
 
   // Check that exactly one "Generating..." text appears
-  const loadingText = container.querySelectorAll(".text-neutral-500");
+  const loadingText = container.querySelectorAll(".text-muted-foreground");
   const generatingElements = Array.from(loadingText).filter(
-    (el) => el.textContent === "Generating..."
+    (el) => el.textContent?.includes("Generating...")
   );
   expect(generatingElements).toHaveLength(1);
 });

@@ -337,10 +337,12 @@ export function createPreviewHTML(
       margin: 0;
       padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #F5F5F5;
     }
     #root {
       width: 100vw;
       height: 100vh;
+      background-color: #F5F5F5;
     }
     /* Error boundary styling when app component throws */
     .error-boundary {

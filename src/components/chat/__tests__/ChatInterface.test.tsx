@@ -1,5 +1,5 @@
 import { test, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ChatInterface } from "../ChatInterface";
 import { useChat } from "@/lib/contexts/chat-context";
@@ -15,6 +15,25 @@ vi.mock("@/components/ui/scroll-area", () => ({
     <div className={className} data-radix-scroll-area-viewport>
       {children}
     </div>
+  ),
+}));
+
+// Mock lucide-react icons
+vi.mock("lucide-react", () => ({
+  AlertCircle: ({ className }: { className?: string }) => (
+    <div className={className}>AlertCircle</div>
+  ),
+  RefreshCw: ({ className }: { className?: string }) => (
+    <div className={className}>RefreshCw</div>
+  ),
+  Info: ({ className }: { className?: string }) => (
+    <div className={className}>Info</div>
+  ),
+  Sparkles: ({ className }: { className?: string }) => (
+    <div className={className}>Sparkles</div>
+  ),
+  Wand2: ({ className }: { className?: string }) => (
+    <div className={className}>Wand2</div>
   ),
 }));
 
@@ -61,6 +80,12 @@ afterEach(() => {
 });
 
 test("renders chat interface with message list and input", () => {
+  // Need messages for MessageList to be rendered
+  (useChat as any).mockReturnValue({
+    ...mockUseChat,
+    messages: [{ id: "1", role: "user", content: "Test" }],
+  });
+
   render(<ChatInterface />);
 
   expect(screen.getByTestId("message-list")).toBeDefined();
@@ -72,7 +97,7 @@ test("passes correct props to MessageList", () => {
     { id: "1", role: "user", content: "Hello" },
     { id: "2", role: "assistant", content: "Hi there!" },
   ];
-  
+
   (useChat as any).mockReturnValue({
     ...mockUseChat,
     messages,
@@ -138,6 +163,12 @@ test("isLoading is false when status is idle", () => {
 
 
 test("scrolls when messages change", () => {
+  // Start with at least one message so MessageList is rendered
+  (useChat as any).mockReturnValue({
+    ...mockUseChat,
+    messages: [{ id: "1", role: "user", content: "Initial" }],
+  });
+
   const { rerender } = render(<ChatInterface />);
 
   // Get initial scroll container
@@ -161,22 +192,25 @@ test("scrolls when messages change", () => {
 });
 
 test("renders with correct layout classes", () => {
+  // Need messages for MessageList to be rendered
+  (useChat as any).mockReturnValue({
+    ...mockUseChat,
+    messages: [{ id: "1", role: "user", content: "Test" }],
+  });
+
   const { container } = render(<ChatInterface />);
 
   const mainDiv = container.firstChild as HTMLElement;
   expect(mainDiv.className).toContain("flex");
   expect(mainDiv.className).toContain("flex-col");
   expect(mainDiv.className).toContain("h-full");
-  expect(mainDiv.className).toContain("p-4");
   expect(mainDiv.className).toContain("overflow-hidden");
 
-  // When messages are empty, the wrapper uses flex for centering
   // When messages exist, it uses ScrollArea with overflow-hidden
   const scrollArea = screen.getByTestId("message-list").closest(".flex-1");
-  expect(scrollArea?.className).toMatch(/(overflow-hidden|flex items-center justify-center)/);
+  expect(scrollArea?.className).toMatch(/overflow-hidden/);
 
   const inputWrapper = screen.getByTestId("message-input").parentElement;
-  expect(inputWrapper?.className).toContain("mt-4");
   expect(inputWrapper?.className).toContain("flex-shrink-0");
 });
 
@@ -308,9 +342,10 @@ test("error banner should have correct styling classes", () => {
 
   const { container } = render(<ChatInterface />);
 
-  const errorBanner = container.querySelector(".bg-red-50");
+  // Check for destructive/error styling with the new design system
+  const errorBanner = container.querySelector(".bg-destructive\\/5");
   expect(errorBanner).toBeDefined();
-  expect(errorBanner?.className).toContain("border-red-200");
+  expect(errorBanner?.className).toContain("border-destructive/20");
   expect(errorBanner?.className).toContain("rounded-lg");
 });
 
