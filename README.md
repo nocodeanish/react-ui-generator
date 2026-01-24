@@ -2,6 +2,8 @@
 
 AI-powered React UI component generator with live preview, Tailwind CSS, and Next.js. Build beautiful, responsive React components through natural language conversations with Claude AI.
 
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/anish3592)
+
 ## Overview
 
 React AI UI Generator is a web-based tool that transforms your component ideas into production-ready React code. Simply describe what you want to build, and Claude AI will generate complete components with Tailwind CSS styling, live preview, and instant feedback. Perfect for rapid prototyping, learning React, or accelerating your development workflow.
@@ -169,6 +171,18 @@ npm run lint             # Run ESLint
 
 Contributions are welcome! Please read the architecture documentation in [CLAUDE.md](CLAUDE.md) before submitting PRs.
 
+## Support
+
+If you find this project helpful and want to support its development, consider buying me a coffee! Your support helps keep this project alive and growing.
+
+<a href="https://buymeacoffee.com/anish3592" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="60"></a>
+
+Every contribution, no matter how small, is greatly appreciated and motivates me to keep improving this tool.
+
 ## License
 
 MIT
+
+---
+
+Made with ❤️ by [Anish](https://buymeacoffee.com/anish3592)
