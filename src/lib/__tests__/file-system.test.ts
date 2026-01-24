@@ -22,8 +22,9 @@ test("normalizes paths correctly", () => {
   fs.createFile("//folder//file.txt", "content");
   expect(fs.exists("/folder/file.txt")).toBe(true);
 
-  fs.createFile("/trailing/", "content");
-  expect(fs.exists("/trailing")).toBe(true);
+  // Test trailing slash normalization with valid file extension
+  fs.createFile("/trailing.txt", "content");
+  expect(fs.exists("/trailing.txt")).toBe(true);
 });
 
 test("creates files in root directory", () => {

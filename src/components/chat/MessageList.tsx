@@ -11,6 +11,23 @@ interface MessageListProps {
   isLoading?: boolean;
 }
 
+// Safely extract text content - handles both string and array formats
+function getTextContent(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    return content
+      .filter((item: any) => item?.type === "text" && typeof item?.text === "string")
+      .map((item: any) => item.text)
+      .join("");
+  }
+  if (content && typeof content === "object" && "text" in content) {
+    return String((content as any).text || "");
+  }
+  return "";
+}
+
 export function MessageList({ messages, isLoading }: MessageListProps) {
   if (messages.length === 0) {
     return (
@@ -27,9 +44,9 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
   return (
     <div className="flex flex-col h-full overflow-y-auto px-4 py-6">
       <div className="space-y-6 max-w-4xl mx-auto w-full">
-        {messages.map((message) => (
+        {messages.map((message, index) => (
           <div
-            key={message.id || message.content}
+            key={message.id || `message-${index}`}
             className={cn(
               "flex gap-4",
               message.role === "user" ? "justify-end" : "justify-start"
@@ -59,12 +76,14 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                       {message.parts.map((part, partIndex) => {
                         switch (part.type) {
                           case "text":
+                            const textContent = getTextContent(part.text);
+                            if (!textContent) return null;
                             return message.role === "user" ? (
-                              <span key={partIndex} className="whitespace-pre-wrap">{part.text}</span>
+                              <span key={partIndex} className="whitespace-pre-wrap">{textContent}</span>
                             ) : (
                               <MarkdownRenderer
                                 key={partIndex}
-                                content={part.text}
+                                content={textContent}
                                 className="prose-sm"
                               />
                             );
@@ -115,11 +134,15 @@ export function MessageList({ messages, isLoading }: MessageListProps) {
                         )}
                     </>
                   ) : message.content ? (
-                    message.role === "user" ? (
-                      <span className="whitespace-pre-wrap">{message.content}</span>
-                    ) : (
-                      <MarkdownRenderer content={message.content} className="prose-sm" />
-                    )
+                    (() => {
+                      const content = getTextContent(message.content);
+                      if (!content) return null;
+                      return message.role === "user" ? (
+                        <span className="whitespace-pre-wrap">{content}</span>
+                      ) : (
+                        <MarkdownRenderer content={content} className="prose-sm" />
+                      );
+                    })()
                   ) : isLoading &&
                     message.role === "assistant" &&
                     messages.indexOf(message) === messages.length - 1 ? (

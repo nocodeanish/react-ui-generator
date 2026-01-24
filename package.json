@@ -1,9 +1,9 @@
 {
-  "name": "uigen",
+  "name": "react-ai-ui-generator",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "dev:daemon": "next dev --turbopack > logs.txt 2>&1 & echo 'Server started, writing logs to logs.txt'",
     "build": "next build",
     "start": "next start",

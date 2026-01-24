@@ -7,6 +7,21 @@ export interface FileNode {
   children?: Map<string, FileNode>; // Only present for directories
 }
 
+// Security limits for virtual file system
+const MAX_FILES = 100;
+const MAX_FILE_SIZE = 500_000; // 500KB per file
+const MAX_TOTAL_SIZE = 5_000_000; // 5MB total
+const ALLOWED_EXTENSIONS = [
+  ".js",
+  ".jsx",
+  ".ts",
+  ".tsx",
+  ".css",
+  ".json",
+  ".md",
+  ".txt",
+];
+
 // In-memory file system implementation using a tree structure
 // Avoids disk I/O for performance and enables atomic save operations
 export class VirtualFileSystem {
@@ -21,6 +36,78 @@ export class VirtualFileSystem {
       children: new Map(),
     };
     this.files.set("/", this.root);
+  }
+
+  // Validate path is safe (no traversal, valid format)
+  private validatePath(path: string): boolean {
+    // Must start with /
+    if (!path.startsWith("/")) {
+      return false;
+    }
+
+    // No path traversal attempts
+    if (path.includes("..")) {
+      return false;
+    }
+
+    // No double slashes (except normalization handles this)
+    if (path.includes("//")) {
+      return false;
+    }
+
+    // No null bytes
+    if (path.includes("\0")) {
+      return false;
+    }
+
+    // Check max path length
+    if (path.length > 500) {
+      return false;
+    }
+
+    return true;
+  }
+
+  // Validate file extension is allowed
+  private validateFileExtension(path: string): boolean {
+    const lastDot = path.lastIndexOf(".");
+    if (lastDot === -1) {
+      return false; // No extension
+    }
+
+    const ext = path.substring(lastDot).toLowerCase();
+    return ALLOWED_EXTENSIONS.includes(ext);
+  }
+
+  // Check if adding a file would exceed size limits
+  private checkSizeLimits(newFileSize: number): boolean {
+    // Check file count
+    const fileCount = Array.from(this.files.values()).filter(
+      (node) => node.type === "file"
+    ).length;
+
+    if (fileCount >= MAX_FILES) {
+      return false;
+    }
+
+    // Check individual file size
+    if (newFileSize > MAX_FILE_SIZE) {
+      return false;
+    }
+
+    // Check total size
+    let totalSize = 0;
+    for (const [_, node] of this.files) {
+      if (node.type === "file") {
+        totalSize += node.content?.length || 0;
+      }
+    }
+
+    if (totalSize + newFileSize > MAX_TOTAL_SIZE) {
+      return false;
+    }
+
+    return true;
   }
 
   // Normalize paths to consistent format: leading /, no trailing slash (except root), no double slashes
@@ -69,6 +156,24 @@ export class VirtualFileSystem {
   // Auto-creates parent directories as needed
   createFile(path: string, content: string = ""): FileNode | null {
     const normalized = this.normalizePath(path);
+
+    // Security: Validate path
+    if (!this.validatePath(normalized)) {
+      console.error("[Security] Invalid path rejected:", path);
+      return null;
+    }
+
+    // Security: Validate file extension
+    if (!this.validateFileExtension(normalized)) {
+      console.error("[Security] Invalid file extension rejected:", path);
+      return null;
+    }
+
+    // Security: Check size limits
+    if (!this.checkSizeLimits(content.length)) {
+      console.error("[Security] Size limit exceeded for:", path);
+      return null;
+    }
 
     // Check if file already exists - prevents overwriting
     if (this.files.has(normalized)) {
@@ -154,6 +259,17 @@ export class VirtualFileSystem {
       return false;
     }
 
+    // Security: Check content size before update
+    const oldSize = file.content?.length || 0;
+    const newSize = content.length;
+    const sizeDiff = newSize - oldSize;
+
+    // If growing, check we don't exceed limits
+    if (sizeDiff > 0 && !this.checkSizeLimits(sizeDiff)) {
+      console.error("[Security] Size limit would be exceeded updating:", path);
+      return false;
+    }
+
     file.content = content;
     return true;
   }
@@ -197,6 +313,12 @@ export class VirtualFileSystem {
     const normalizedOld = this.normalizePath(oldPath);
     const normalizedNew = this.normalizePath(newPath);
 
+    // Security: Validate both paths
+    if (!this.validatePath(normalizedNew)) {
+      console.error("[Security] Invalid rename target path:", newPath);
+      return false;
+    }
+
     // Can't rename root directory
     if (normalizedOld === "/" || normalizedNew === "/") {
       return false;
@@ -205,6 +327,12 @@ export class VirtualFileSystem {
     // Check if source exists
     const sourceNode = this.files.get(normalizedOld);
     if (!sourceNode) {
+      return false;
+    }
+
+    // Security: If renaming a file, validate new extension
+    if (sourceNode.type === "file" && !this.validateFileExtension(normalizedNew)) {
+      console.error("[Security] Invalid file extension in rename:", newPath);
       return false;
     }
 

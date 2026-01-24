@@ -24,6 +24,8 @@ interface ChatContextType {
   handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void; // Update input state
   handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void; // Send message to API
   status: string; // Loading state: "idle", "streaming", etc.
+  error: Error | undefined; // Error state from API
+  reload: () => void; // Retry last failed message
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -50,6 +52,8 @@ export function ChatProvider({
     handleInputChange,
     handleSubmit,
     status,
+    error,
+    reload,
   } = useAIChat({
     api: "/api/chat", // Our custom chat endpoint
     initialMessages, // Load saved conversation if provided
@@ -63,6 +67,10 @@ export function ChatProvider({
     // We delegate to FileSystemContext to handle file operations
     onToolCall: ({ toolCall }) => {
       handleToolCall(toolCall);
+    },
+    // Hook called when an error occurs
+    onError: (error) => {
+      console.error("[Chat Error]", error);
     },
   });
 
@@ -82,6 +90,8 @@ export function ChatProvider({
         handleInputChange,
         handleSubmit,
         status,
+        error,
+        reload,
       }}
     >
       {children}

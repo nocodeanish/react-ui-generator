@@ -3,9 +3,29 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "development-secret-key"
-);
+// Lazy initialization to avoid build-time errors
+// JWT_SECRET validation happens at first use, not module load
+let _jwtSecret: Uint8Array | null = null;
+
+function getJWTSecret(): Uint8Array {
+  if (_jwtSecret) return _jwtSecret;
+
+  const secret = process.env.JWT_SECRET;
+
+  // Warn in production if no secret is set (but don't crash during build)
+  if (!secret && process.env.NODE_ENV === "production") {
+    console.error(
+      "[Security Warning] JWT_SECRET environment variable is not set in production. " +
+      "Generate a secure secret with: openssl rand -base64 32"
+    );
+  }
+
+  _jwtSecret = new TextEncoder().encode(
+    secret || "development-secret-key-change-this-in-production"
+  );
+
+  return _jwtSecret;
+}
 
 const COOKIE_NAME = "auth-token";
 
@@ -23,7 +43,7 @@ export async function createSession(userId: string, email: string) {
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("7d")
     .setIssuedAt()
-    .sign(JWT_SECRET);
+    .sign(getJWTSecret());
 
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, token, {
@@ -44,9 +64,11 @@ export async function getSession(): Promise<SessionPayload | null> {
   }
 
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, getJWTSecret());
     return payload as unknown as SessionPayload;
   } catch (error) {
+    // Delete invalid or expired token
+    cookieStore.delete(COOKIE_NAME);
     return null;
   }
 }
@@ -66,9 +88,10 @@ export async function verifySession(
   }
 
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, getJWTSecret());
     return payload as unknown as SessionPayload;
   } catch (error) {
+    // Note: Can't delete cookie in middleware, but verification will fail
     return null;
   }
 }

@@ -6,6 +6,7 @@ export async function middleware(request: NextRequest) {
   const session = await verifySession(request);
 
   // Protected routes that require authentication
+  // Note: /api/chat is NOT protected here - it has rate limiting for anon users
   const protectedPaths = ["/api/projects", "/api/filesystem"];
   const isProtectedPath = protectedPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
