@@ -1,20 +1,22 @@
 # React AI UI Generator
 
-AI-powered React UI component generator with live preview, Tailwind CSS, and Next.js. Build beautiful, responsive React components through natural language conversations with Claude AI.
+AI-powered React UI component generator with live preview, Tailwind CSS, and Next.js. Build beautiful, responsive React components through natural language conversations with multiple AI providers.
 
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?style=for-the-badge&logo=buy-me-a-coffee)](https://buymeacoffee.com/anish3592)
 
 ## Overview
 
-React AI UI Generator is a web-based tool that transforms your component ideas into production-ready React code. Simply describe what you want to build, and Claude AI will generate complete components with Tailwind CSS styling, live preview, and instant feedback. Perfect for rapid prototyping, learning React, or accelerating your development workflow.
+React AI UI Generator is a web-based tool that transforms your component ideas into production-ready React code. Simply describe what you want to build, and AI will generate complete components with Tailwind CSS styling, live preview, and instant feedback. Perfect for rapid prototyping, learning React, or accelerating your development workflow.
 
 **Key Highlights:**
-- 🤖 Powered by Anthropic's Claude AI for intelligent code generation
+- 🤖 Multi-provider AI support (Anthropic Claude, OpenAI, Google Gemini, OpenRouter, xAI Grok)
+- ⚙️ Per-project provider and model selection
 - ⚡ Live preview with instant hot reload
 - 🎨 Beautiful UI components with Tailwind CSS v4
 - 💾 Virtual file system - no disk operations required
-- 🔐 Secure authentication and project persistence
-- 📝 Full code editor with syntax highlighting
+- 🔐 Secure authentication and encrypted API key management
+- 📝 Full code editor with syntax highlighting and IntelliSense
+- 🌓 Dark/light theme support
 - 🎯 Works with or without API key (demo mode available)
 
 ## Prerequisites
@@ -26,19 +28,29 @@ React AI UI Generator is a web-based tool that transforms your component ideas i
 
 ### 1. Environment Setup
 
-**Optional but Recommended:** Add your Anthropic API key to `.env`:
-
-```bash
-ANTHROPIC_API_KEY=your-api-key-here
-```
-
-**For Production:** Generate and set a JWT secret:
+**For Production (Required):** Generate and set a JWT secret:
 
 ```bash
 JWT_SECRET=$(openssl rand -base64 32)
 ```
 
-> **Note:** Without an API key, the app runs in demo mode with limited functionality using static component templates.
+**AI Provider API Keys (Optional but Recommended):**
+
+Add at least one AI provider API key to `.env`:
+
+```bash
+# Choose one or more providers
+ANTHROPIC_API_KEY=your-anthropic-key-here
+OPENAI_API_KEY=your-openai-key-here
+GOOGLE_AI_API_KEY=your-google-key-here
+OPENROUTER_API_KEY=your-openrouter-key-here
+XAI_API_KEY=your-xai-key-here
+```
+
+> **Note:**
+> - Without an API key, the app runs in demo mode with limited functionality
+> - Users can also add their own API keys via the Settings dialog (stored encrypted with AES-256-GCM)
+> - Environment keys take priority over user-stored keys
 
 ### 2. Install and Initialize
 
@@ -61,8 +73,10 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Features
 
-### Core Capabilities
-- **AI-Powered Generation** - Natural language to React components using Claude AI
+### AI & Code Generation
+- **Multi-Provider Support** - Choose from Anthropic Claude, OpenAI GPT, Google Gemini, OpenRouter, or xAI Grok
+- **Per-Project Settings** - Select different providers and models for each project
+- **AI-Powered Generation** - Natural language to React components with intelligent code generation
 - **Live Preview** - Real-time component rendering with hot reload
 - **Virtual File System** - In-memory file operations with security sandboxing
 - **Code Editor** - Monaco editor with syntax highlighting and IntelliSense
@@ -70,14 +84,18 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - **Iterative Development** - Refine components through conversation
 
 ### Security & Performance
-- **Rate Limiting** - Built-in protection for auth and API endpoints
+- **Encrypted API Keys** - User API keys stored with AES-256-GCM encryption
+- **Rate Limiting** - Built-in protection for auth and API endpoints (sign up, sign in, chat, settings)
 - **Input Validation** - Path traversal prevention, file size limits, extension whitelist
 - **Secure Authentication** - JWT-based sessions with timing attack prevention
 - **Demo Mode** - Graceful degradation without API key
 
 ### User Experience
+- **Project Management** - Rename, delete, and organize projects
+- **Dark/Light Theme** - Automatic theme switching with next-themes
 - **Anonymous Mode** - Start building without signup
 - **Project Persistence** - Save and resume work (requires account)
+- **Settings Management** - Add and manage API keys for multiple providers
 - **Export Code** - Download generated components
 - **Error Handling** - Comprehensive error boundaries and user feedback
 
@@ -87,32 +105,45 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
    - Sign up for an account or continue as anonymous user
    - Click "New Project" to begin
 
-2. **Describe Your Component**
-   - Type natural language descriptions like "Create a contact form with validation"
-   - Claude AI interprets your request and generates React code
+2. **Configure Your AI Provider (Optional)**
+   - Click the Settings icon to add API keys for different providers
+   - Select your preferred provider and model from the dropdown
+   - Each project can use a different AI provider/model
 
-3. **Preview & Iterate**
+3. **Describe Your Component**
+   - Type natural language descriptions like "Create a contact form with validation"
+   - AI interprets your request and generates React code
+
+4. **Preview & Iterate**
    - View your component in real-time in the Preview tab
    - Switch to Code tab to inspect and edit generated files
    - Continue the conversation to refine and improve
 
-4. **Save & Export**
+5. **Manage & Export**
+   - Rename or delete projects from the sidebar
    - Authenticated users can save projects for later
    - Export generated code to use in your projects
 
 ## Tech Stack
 
 - **Frontend:** React 19, Next.js 15 (App Router), TypeScript
-- **Styling:** Tailwind CSS v4, Radix UI components
-- **AI:** Anthropic Claude (Sonnet), Vercel AI SDK
+- **Styling:** Tailwind CSS v4, Radix UI components, next-themes
+- **AI Providers:**
+  - Anthropic Claude (Sonnet, Haiku, Opus)
+  - OpenAI (GPT-4o, GPT-4o Mini, GPT-4 Turbo)
+  - Google AI (Gemini 2.0 Flash, Gemini 1.5 Pro/Flash)
+  - OpenRouter (Multi-provider access)
+  - xAI (Grok 2, Grok 2 Mini)
+  - Vercel AI SDK for unified interface
 - **Database:** Prisma ORM with SQLite
+- **Security:** AES-256-GCM encryption for API keys, scrypt key derivation
 - **Code Editor:** Monaco Editor, Babel standalone (JSX transform)
 - **Testing:** Vitest, React Testing Library (252 tests)
 - **Authentication:** JWT (jose), bcrypt
 
 ## Topics
 
-`ai` `react` `nextjs` `tailwindcss` `ui-components` `code-generation` `vercel-ai`
+`ai` `react` `nextjs` `tailwindcss` `ui-components` `code-generation` `vercel-ai` `claude` `openai` `gpt-4` `gemini` `multi-provider` `ai-sdk` `component-generator`
 
 ## Documentation
 
@@ -147,22 +178,40 @@ npm run lint             # Run ESLint
 ```
 ├── src/
 │   ├── app/                    # Next.js app router pages
-│   │   ├── api/chat/          # AI chat API endpoint
+│   │   ├── api/
+│   │   │   ├── chat/          # AI chat API endpoint
+│   │   │   ├── settings/      # User API key management
+│   │   │   └── project/       # Project settings API
 │   │   └── [projectId]/       # Project editor page
 │   ├── components/            # React components
 │   │   ├── auth/             # Authentication forms
 │   │   ├── chat/             # Chat interface
-│   │   ├── editor/           # Code editor & file tree
-│   │   └── preview/          # Live preview iframe
+│   │   ├── editor/           # Code editor, file tree, provider selector
+│   │   ├── preview/          # Live preview iframe
+│   │   ├── projects/         # Project list and management
+│   │   ├── settings/         # Settings dialog
+│   │   ├── providers/        # Theme provider
+│   │   └── ui/               # Radix UI components
 │   ├── lib/                   # Core utilities
 │   │   ├── contexts/         # React contexts (Chat, FileSystem)
+│   │   ├── providers/        # AI provider registry and mock
 │   │   ├── transform/        # JSX transformation
 │   │   ├── file-system.ts    # Virtual file system
-│   │   ├── provider.ts       # AI provider (Claude/mock)
+│   │   ├── provider.ts       # Multi-provider AI integration
+│   │   ├── crypto.ts         # API key encryption (AES-256-GCM)
 │   │   ├── auth.ts           # JWT authentication
 │   │   └── rate-limit.ts     # Rate limiting
-│   └── actions/               # Server actions (auth, projects)
+│   └── actions/               # Server actions
+│       ├── index.ts          # Auth (sign up, sign in)
+│       ├── create-project.ts # Create new project
+│       ├── get-project.ts    # Fetch project
+│       ├── get-projects.ts   # List projects
+│       ├── rename-project.ts # Rename project
+│       ├── delete-project.ts # Delete project
+│       └── get-default-provider.ts # Provider detection
 ├── prisma/                    # Database schema & migrations
+├── .github/                   # GitHub configuration
+│   └── FUNDING.yml           # Sponsor button config
 ├── CLAUDE.md                  # Architecture documentation
 └── SECURITY.md               # Security guidelines
 ```
