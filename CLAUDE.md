@@ -240,4 +240,4 @@ Tests are colocated in `__tests__` directories (Vitest + React Testing Library):
 
 Run with `npm run test` or `npm run test -- <filename>`. Environment: jsdom (configured in `vitest.config.mts`)
 
-Current test count: 252 tests across 11 test files.
+Current test count: 265 tests across 11 test files.
