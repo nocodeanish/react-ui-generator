@@ -60,7 +60,7 @@ export function HeaderActions({ user }: HeaderActionsProps) {
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8"
+        className="h-8 w-8 sm:min-h-0 sm:min-w-0 min-h-[44px] min-w-[44px]"
         onClick={handleSignOut}
         title="Sign out"
       >

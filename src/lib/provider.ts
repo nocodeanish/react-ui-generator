@@ -1,11 +1,11 @@
 // Multi-provider support for AI language models
 // Supports: Anthropic, OpenAI, Google AI, OpenRouter, xAI (Grok)
 
-import { anthropic } from "@ai-sdk/anthropic";
+import { anthropic, createAnthropic } from "@ai-sdk/anthropic";
 import { openai, createOpenAI } from "@ai-sdk/openai";
-import { google } from "@ai-sdk/google";
-import { xai } from "@ai-sdk/xai";
-import type { LanguageModelV1 } from "ai";
+import { google, createGoogleGenerativeAI } from "@ai-sdk/google";
+import { xai, createXai } from "@ai-sdk/xai";
+import type { LanguageModel } from "ai";
 
 import { PROVIDERS, type ProviderId, getDefaultModel } from "./providers";
 import { getMockLanguageModel } from "./providers/mock";
@@ -15,10 +15,9 @@ function createOpenRouterClient(apiKey: string) {
   return createOpenAI({
     baseURL: "https://openrouter.ai/api/v1",
     apiKey,
-    compatibility: "compatible", // Required for OpenRouter
     headers: {
       "HTTP-Referer": "https://uigen.app",
-      "X-Title": "UIGen",
+      "X-Title": "React AI UI Generator",
     },
   });
 }
@@ -31,7 +30,7 @@ export function getLanguageModel(
   providerId: ProviderId = "anthropic",
   modelId?: string,
   apiKey?: string
-): LanguageModelV1 {
+): LanguageModel {
   // Use default model if not specified
   const model = modelId || getDefaultModel(providerId);
 
@@ -44,23 +43,34 @@ export function getLanguageModel(
   }
 
   // Create provider-specific model
+  // In AI SDK v6, use factory functions when custom API key is needed
   switch (providerId) {
-    case "anthropic":
-      return anthropic(model, { apiKey: key });
-
-    case "openai":
-      return openai(model, { apiKey: key });
-
-    case "google":
-      return google(model, { apiKey: key });
-
-    case "openrouter": {
-      const client = createOpenRouterClient(key);
-      return client(model);
+    case "anthropic": {
+      const provider = apiKey ? createAnthropic({ apiKey: key }) : anthropic;
+      return provider(model);
     }
 
-    case "xai":
-      return xai(model, { apiKey: key });
+    case "openai": {
+      const provider = apiKey ? createOpenAI({ apiKey: key }) : openai;
+      return provider(model);
+    }
+
+    case "google": {
+      const provider = apiKey ? createGoogleGenerativeAI({ apiKey: key }) : google;
+      return provider(model);
+    }
+
+    case "openrouter": {
+      // OpenRouter only supports Chat Completions API, not the Responses API
+      // Use .chat() explicitly to use /chat/completions endpoint
+      const client = createOpenRouterClient(key);
+      return client.chat(model);
+    }
+
+    case "xai": {
+      const provider = apiKey ? createXai({ apiKey: key }) : xai;
+      return provider(model);
+    }
 
     default:
       // Fallback to mock provider for unknown providers

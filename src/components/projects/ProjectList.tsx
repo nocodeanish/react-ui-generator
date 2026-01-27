@@ -20,6 +20,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ProjectSkeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/components/ui/toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,9 +40,10 @@ interface Project {
 interface ProjectListProps {
   projects: Project[];
   currentProjectId?: string;
+  loading?: boolean;
 }
 
-export function ProjectList({ projects, currentProjectId }: ProjectListProps) {
+export function ProjectList({ projects, currentProjectId, loading = false }: ProjectListProps) {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Project | null>(null);
@@ -50,6 +53,7 @@ export function ProjectList({ projects, currentProjectId }: ProjectListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const { success, error: toastError } = useToast();
 
   // Focus input when editing starts
   useEffect(() => {
@@ -66,6 +70,7 @@ export function ProjectList({ projects, currentProjectId }: ProjectListProps) {
     const result = await deleteProject(project.id);
 
     if (result.success) {
+      success("Project deleted", `"${project.name}" has been deleted.`);
       // If we deleted the current project, navigate to another one or home
       if (project.id === currentProjectId) {
         const remainingProjects = projects.filter((p) => p.id !== project.id);
@@ -77,6 +82,7 @@ export function ProjectList({ projects, currentProjectId }: ProjectListProps) {
       }
       router.refresh();
     } else {
+      toastError("Failed to delete project", result.error || "An error occurred");
       console.error("Failed to delete:", result.error);
     }
 
@@ -90,9 +96,11 @@ export function ProjectList({ projects, currentProjectId }: ProjectListProps) {
     const result = await deleteAllProjects();
 
     if (result.success) {
+      success("All projects deleted", "Your projects have been deleted.");
       router.push("/");
       router.refresh();
     } else {
+      toastError("Failed to delete projects", result.error || "An error occurred");
       console.error("Failed to delete all:", result.error);
     }
 
@@ -103,9 +111,11 @@ export function ProjectList({ projects, currentProjectId }: ProjectListProps) {
     setIsCreating(true);
     try {
       const project = await createProject();
+      success("Project created", "Your new project is ready.");
       router.push(`/${project.id}`);
       router.refresh();
     } catch (error) {
+      toastError("Failed to create project", "An error occurred while creating the project.");
       console.error("Failed to create project:", error);
     }
     setIsCreating(false);
@@ -125,8 +135,10 @@ export function ProjectList({ projects, currentProjectId }: ProjectListProps) {
     const result = await renameProject(projectId, editingName.trim());
 
     if (result.success) {
+      success("Project renamed", `Project renamed to "${editingName.trim()}".`);
       router.refresh();
     } else {
+      toastError("Failed to rename project", result.error || "An error occurred");
       console.error("Failed to rename:", result.error);
     }
 
@@ -191,8 +203,14 @@ export function ProjectList({ projects, currentProjectId }: ProjectListProps) {
 
       {/* Project List */}
       <div className="flex-1 overflow-y-auto">
-        {projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center p-6">
+        {loading ? (
+          <div className="py-2 px-2">
+            {[1, 2, 3].map((i) => (
+              <ProjectSkeleton key={i} />
+            ))}
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center p-6 animate-fade-in">
             <div className="h-12 w-12 rounded-lg bg-secondary border border-border flex items-center justify-center mb-4">
               <FolderOpen className="h-6 w-6 text-muted-foreground" />
             </div>
@@ -203,7 +221,7 @@ export function ProjectList({ projects, currentProjectId }: ProjectListProps) {
           </div>
         ) : (
           <ul className="py-2">
-            {projects.map((project) => {
+            {projects.map((project, index) => {
               const isActive = project.id === currentProjectId;
               const isDeleting = deletingId === project.id;
               const isEditing = editingId === project.id;
@@ -211,7 +229,7 @@ export function ProjectList({ projects, currentProjectId }: ProjectListProps) {
               return (
                 <li
                   key={project.id}
-                  className="px-2 mb-0.5"
+                  className={`px-2 mb-0.5 animate-fade-in stagger-${Math.min(index + 1, 5)}`}
                 >
                   {isEditing ? (
                     <div className="px-2 py-2">
@@ -251,9 +269,12 @@ export function ProjectList({ projects, currentProjectId }: ProjectListProps) {
                           <FolderOpen className="h-4 w-4" />
                         </div>
                         <div className="flex-1 min-w-0 pt-0.5">
-                          <p className={`text-sm font-medium truncate ${
-                            isActive ? "text-sidebar-foreground" : "text-sidebar-foreground"
-                          }`}>
+                          <p
+                            className={`text-sm font-medium truncate ${
+                              isActive ? "text-sidebar-foreground" : "text-sidebar-foreground"
+                            }`}
+                            title={project.name}
+                          >
                             {project.name}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
@@ -264,14 +285,14 @@ export function ProjectList({ projects, currentProjectId }: ProjectListProps) {
                         </div>
 
                         {/* Action buttons */}
-                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               startRename(project);
                             }}
                             disabled={isDeleting}
-                            className="p-1.5 rounded-md hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
+                            className="p-1.5 rounded-md hover:bg-background text-muted-foreground hover:text-foreground transition-all translate-x-1 group-hover:translate-x-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             title="Rename"
                           >
                             <Pencil className="h-3.5 w-3.5" />
@@ -282,7 +303,7 @@ export function ProjectList({ projects, currentProjectId }: ProjectListProps) {
                               setConfirmDelete(project);
                             }}
                             disabled={isDeleting}
-                            className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                            className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all translate-x-1 group-hover:translate-x-0 delay-75 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             title="Delete"
                           >
                             {isDeleting ? (

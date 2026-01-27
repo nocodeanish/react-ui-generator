@@ -10,13 +10,13 @@ afterEach(() => {
 test("renders with placeholder text", () => {
   const mockProps = {
     input: "",
-    handleInputChange: vi.fn(),
+    setInput: vi.fn(),
     handleSubmit: vi.fn(),
     isLoading: false,
   };
 
   render(<MessageInput {...mockProps} />);
-  
+
   const textarea = screen.getByPlaceholderText("Describe the React component you want to create...");
   expect(textarea).toBeDefined();
 });
@@ -24,95 +24,95 @@ test("renders with placeholder text", () => {
 test("displays the input value", () => {
   const mockProps = {
     input: "Test input value",
-    handleInputChange: vi.fn(),
+    setInput: vi.fn(),
     handleSubmit: vi.fn(),
     isLoading: false,
   };
 
   render(<MessageInput {...mockProps} />);
-  
+
   const textarea = screen.getByDisplayValue("Test input value");
   expect(textarea).toBeDefined();
 });
 
-test("calls handleInputChange when typing", async () => {
-  const handleInputChange = vi.fn();
+test("calls setInput when typing", async () => {
+  const setInput = vi.fn();
   const mockProps = {
     input: "",
-    handleInputChange,
+    setInput,
     handleSubmit: vi.fn(),
     isLoading: false,
   };
 
   render(<MessageInput {...mockProps} />);
-  
+
   const textarea = screen.getByPlaceholderText("Describe the React component you want to create...");
-  await userEvent.type(textarea, "Hello");
-  
-  expect(handleInputChange).toHaveBeenCalled();
+  await userEvent.type(textarea, "H");
+
+  expect(setInput).toHaveBeenCalled();
 });
 
 test("calls handleSubmit when form is submitted", async () => {
-  const handleSubmit = vi.fn((e) => e.preventDefault());
+  const handleSubmit = vi.fn((e) => e?.preventDefault());
   const mockProps = {
     input: "Test input",
-    handleInputChange: vi.fn(),
+    setInput: vi.fn(),
     handleSubmit,
     isLoading: false,
   };
 
   render(<MessageInput {...mockProps} />);
-  
+
   const form = screen.getByRole("textbox").closest("form")!;
   fireEvent.submit(form);
-  
+
   expect(handleSubmit).toHaveBeenCalledOnce();
 });
 
 test("submits form when Enter is pressed without shift", async () => {
-  const handleSubmit = vi.fn((e) => e.preventDefault());
+  const handleSubmit = vi.fn((e) => e?.preventDefault());
   const mockProps = {
     input: "Test input",
-    handleInputChange: vi.fn(),
+    setInput: vi.fn(),
     handleSubmit,
     isLoading: false,
   };
 
   render(<MessageInput {...mockProps} />);
-  
+
   const textarea = screen.getByRole("textbox");
   fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
-  
+
   expect(handleSubmit).toHaveBeenCalledOnce();
 });
 
 test("does not submit form when Enter is pressed with shift", async () => {
-  const handleSubmit = vi.fn((e) => e.preventDefault());
+  const handleSubmit = vi.fn((e) => e?.preventDefault());
   const mockProps = {
     input: "Test input",
-    handleInputChange: vi.fn(),
+    setInput: vi.fn(),
     handleSubmit,
     isLoading: false,
   };
 
   render(<MessageInput {...mockProps} />);
-  
+
   const textarea = screen.getByRole("textbox");
   fireEvent.keyDown(textarea, { key: "Enter", shiftKey: true });
-  
+
   expect(handleSubmit).not.toHaveBeenCalled();
 });
 
 test("disables textarea when isLoading is true", () => {
   const mockProps = {
     input: "",
-    handleInputChange: vi.fn(),
+    setInput: vi.fn(),
     handleSubmit: vi.fn(),
     isLoading: true,
   };
 
   render(<MessageInput {...mockProps} />);
-  
+
   const textarea = screen.getByRole("textbox");
   expect(textarea).toHaveProperty("disabled", true);
 });
@@ -120,13 +120,13 @@ test("disables textarea when isLoading is true", () => {
 test("disables submit button when isLoading is true", () => {
   const mockProps = {
     input: "Test input",
-    handleInputChange: vi.fn(),
+    setInput: vi.fn(),
     handleSubmit: vi.fn(),
     isLoading: true,
   };
 
   render(<MessageInput {...mockProps} />);
-  
+
   const submitButton = screen.getByRole("button");
   expect(submitButton).toHaveProperty("disabled", true);
 });
@@ -134,13 +134,13 @@ test("disables submit button when isLoading is true", () => {
 test("disables submit button when input is empty", () => {
   const mockProps = {
     input: "",
-    handleInputChange: vi.fn(),
+    setInput: vi.fn(),
     handleSubmit: vi.fn(),
     isLoading: false,
   };
 
   render(<MessageInput {...mockProps} />);
-  
+
   const submitButton = screen.getByRole("button");
   expect(submitButton).toHaveProperty("disabled", true);
 });
@@ -148,13 +148,13 @@ test("disables submit button when input is empty", () => {
 test("disables submit button when input contains only whitespace", () => {
   const mockProps = {
     input: "   ",
-    handleInputChange: vi.fn(),
+    setInput: vi.fn(),
     handleSubmit: vi.fn(),
     isLoading: false,
   };
 
   render(<MessageInput {...mockProps} />);
-  
+
   const submitButton = screen.getByRole("button");
   expect(submitButton).toHaveProperty("disabled", true);
 });
@@ -162,13 +162,13 @@ test("disables submit button when input contains only whitespace", () => {
 test("enables submit button when input has content and not loading", () => {
   const mockProps = {
     input: "Valid content",
-    handleInputChange: vi.fn(),
+    setInput: vi.fn(),
     handleSubmit: vi.fn(),
     isLoading: false,
   };
 
   render(<MessageInput {...mockProps} />);
-  
+
   const submitButton = screen.getByRole("button");
   expect(submitButton).toHaveProperty("disabled", false);
 });
@@ -177,7 +177,7 @@ test("applies correct CSS classes based on loading state", () => {
   const { rerender } = render(
     <MessageInput
       input="Test"
-      handleInputChange={vi.fn()}
+      setInput={vi.fn()}
       handleSubmit={vi.fn()}
       isLoading={false}
     />
@@ -190,7 +190,7 @@ test("applies correct CSS classes based on loading state", () => {
   rerender(
     <MessageInput
       input="Test"
-      handleInputChange={vi.fn()}
+      setInput={vi.fn()}
       handleSubmit={vi.fn()}
       isLoading={true}
     />
@@ -205,7 +205,7 @@ test("applies pulse animation to send icon when loading", () => {
   const { rerender } = render(
     <MessageInput
       input="Test"
-      handleInputChange={vi.fn()}
+      setInput={vi.fn()}
       handleSubmit={vi.fn()}
       isLoading={false}
     />
@@ -217,7 +217,7 @@ test("applies pulse animation to send icon when loading", () => {
   rerender(
     <MessageInput
       input="Test"
-      handleInputChange={vi.fn()}
+      setInput={vi.fn()}
       handleSubmit={vi.fn()}
       isLoading={true}
     />
@@ -230,13 +230,13 @@ test("applies pulse animation to send icon when loading", () => {
 test("textarea has correct styling classes", () => {
   const mockProps = {
     input: "",
-    handleInputChange: vi.fn(),
+    setInput: vi.fn(),
     handleSubmit: vi.fn(),
     isLoading: false,
   };
 
   render(<MessageInput {...mockProps} />);
-  
+
   const textarea = screen.getByRole("textbox");
   expect(textarea.className).toContain("min-h-[100px]");
   expect(textarea.className).toContain("max-h-[200px]");
@@ -246,18 +246,18 @@ test("textarea has correct styling classes", () => {
 });
 
 test("submit button click triggers form submission", async () => {
-  const handleSubmit = vi.fn((e) => e.preventDefault());
+  const handleSubmit = vi.fn((e) => e?.preventDefault());
   const mockProps = {
     input: "Test input",
-    handleInputChange: vi.fn(),
+    setInput: vi.fn(),
     handleSubmit,
     isLoading: false,
   };
 
   render(<MessageInput {...mockProps} />);
-  
+
   const submitButton = screen.getByRole("button");
   await userEvent.click(submitButton);
-  
+
   expect(handleSubmit).toHaveBeenCalledOnce();
 });

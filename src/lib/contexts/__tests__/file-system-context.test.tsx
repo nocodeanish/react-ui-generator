@@ -260,7 +260,7 @@ test("handles str_replace_editor create command", () => {
   act(() => {
     result.current.handleToolCall({
       toolName: "str_replace_editor",
-      args: {
+      input: {
         command: "create",
         path: "/test.js",
         file_text: "console.log('test');",
@@ -291,7 +291,7 @@ test("handles str_replace_editor create command with error", () => {
   act(() => {
     result.current.handleToolCall({
       toolName: "str_replace_editor",
-      args: {
+      input: {
         command: "create",
         path: "/test.js",
         file_text: "content",
@@ -316,7 +316,7 @@ test("handles str_replace_editor str_replace command", () => {
   act(() => {
     result.current.handleToolCall({
       toolName: "str_replace_editor",
-      args: {
+      input: {
         command: "str_replace",
         path: "/test.js",
         old_str: "old",
@@ -341,7 +341,7 @@ test("handles str_replace_editor str_replace command with error", () => {
   act(() => {
     result.current.handleToolCall({
       toolName: "str_replace_editor",
-      args: {
+      input: {
         command: "str_replace",
         path: "/test.js",
         old_str: "old",
@@ -368,7 +368,7 @@ test("handles str_replace_editor insert command", () => {
   act(() => {
     result.current.handleToolCall({
       toolName: "str_replace_editor",
-      args: {
+      input: {
         command: "insert",
         path: "/test.js",
         new_str: "new line",
@@ -393,7 +393,7 @@ test("handles str_replace_editor insert command with error", () => {
   act(() => {
     result.current.handleToolCall({
       toolName: "str_replace_editor",
-      args: {
+      input: {
         command: "insert",
         path: "/test.js",
         new_str: "new line",
@@ -416,7 +416,7 @@ test("handles file_manager rename command", () => {
   act(() => {
     result.current.handleToolCall({
       toolName: "file_manager",
-      args: {
+      input: {
         command: "rename",
         path: "/old.js",
         new_path: "/new.js",
@@ -437,7 +437,7 @@ test("handles file_manager delete command", () => {
   act(() => {
     result.current.handleToolCall({
       toolName: "file_manager",
-      args: {
+      input: {
         command: "delete",
         path: "/test.js",
       },
@@ -456,7 +456,7 @@ test("handles unknown tool name gracefully", () => {
     act(() => {
       result.current.handleToolCall({
         toolName: "unknown_tool",
-        args: {},
+        input: {},
       });
     });
   }).not.toThrow();
@@ -471,7 +471,7 @@ test("handles unknown command gracefully", () => {
     act(() => {
       result.current.handleToolCall({
         toolName: "str_replace_editor",
-        args: {
+        input: {
           command: "unknown",
           path: "/test.js",
         },
@@ -495,7 +495,7 @@ test("handles null file content when updating file", () => {
   act(() => {
     result.current.handleToolCall({
       toolName: "str_replace_editor",
-      args: {
+      input: {
         command: "str_replace",
         path: "/test.js",
         old_str: "old",

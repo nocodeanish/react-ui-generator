@@ -7,17 +7,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { rateLimit, getClientIP } from "@/lib/rate-limit";
 import { headers } from "next/headers";
+import { RATE_LIMITS, BCRYPT_ROUNDS } from "@/lib/constants";
+import { validateEmail, validatePassword, normalizeEmail } from "@/lib/validation";
 
 export interface AuthResult {
   success: boolean;
   error?: string;
 }
-
-// Email validation regex - basic but secure
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// Password must contain: min 8 chars, 1 uppercase, 1 lowercase, 1 number
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
 export async function signUp(
   email: string,
@@ -27,10 +23,7 @@ export async function signUp(
     // Rate limiting: 3 sign-up attempts per hour per IP
     const headersList = await headers();
     const clientIP = getClientIP(headersList);
-    const rateLimitResult = rateLimit(`signup:${clientIP}`, {
-      limit: 3,
-      window: 60 * 60 * 1000, // 1 hour
-    });
+    const rateLimitResult = rateLimit(`signup:${clientIP}`, RATE_LIMITS.SIGNUP);
 
     if (!rateLimitResult.success) {
       const minutesUntilReset = Math.ceil(
@@ -48,12 +41,12 @@ export async function signUp(
     }
 
     // Validate email format
-    if (!EMAIL_REGEX.test(email)) {
+    if (!validateEmail(email)) {
       return { success: false, error: "Invalid email format" };
     }
 
     // Normalize email to lowercase
-    email = email.toLowerCase().trim();
+    email = normalizeEmail(email);
 
     // Validate password strength
     if (password.length < 8) {
@@ -63,7 +56,7 @@ export async function signUp(
       };
     }
 
-    if (!PASSWORD_REGEX.test(password)) {
+    if (!validatePassword(password)) {
       return {
         success: false,
         error: "Password must contain uppercase, lowercase, and number",
@@ -83,8 +76,8 @@ export async function signUp(
       };
     }
 
-    // Hash password with bcrypt (10 rounds is good balance of security/speed)
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash password with bcrypt
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     // Create user
     const user = await prisma.user.create({
@@ -113,10 +106,7 @@ export async function signIn(
     // Rate limiting: 5 attempts per 15 minutes per IP
     const headersList = await headers();
     const clientIP = getClientIP(headersList);
-    const rateLimitResult = rateLimit(`signin:${clientIP}`, {
-      limit: 5,
-      window: 15 * 60 * 1000, // 15 minutes
-    });
+    const rateLimitResult = rateLimit(`signin:${clientIP}`, RATE_LIMITS.SIGNIN);
 
     if (!rateLimitResult.success) {
       const minutesUntilReset = Math.ceil(
@@ -134,7 +124,7 @@ export async function signIn(
     }
 
     // Normalize email
-    email = email.toLowerCase().trim();
+    email = normalizeEmail(email);
 
     // Find user
     const user = await prisma.user.findUnique({

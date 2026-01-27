@@ -3,6 +3,7 @@
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getDefaultProvider } from "./get-default-provider";
+import { sanitizeProjectName } from "@/lib/validation";
 
 interface CreateProjectInput {
   name?: string;
@@ -30,20 +31,15 @@ export async function createProject(input: CreateProjectInput = {}) {
     throw new Error("Unauthorized");
   }
 
-  // Generate default name if not provided
+  // Generate default name if not provided, then sanitize
   let projectName = input.name?.trim();
 
   if (!projectName) {
     projectName = await generateDefaultName(session.userId);
+  } else {
+    // Sanitize user-provided name (strip HTML, trim, truncate)
+    projectName = sanitizeProjectName(projectName);
   }
-
-  // Limit length
-  if (projectName.length > 100) {
-    projectName = projectName.substring(0, 100);
-  }
-
-  // Remove any HTML/script tags for safety
-  projectName = projectName.replace(/<[^>]*>/g, "");
 
   // Default to empty array for messages if not provided
   const messages = Array.isArray(input.messages) ? input.messages : [];

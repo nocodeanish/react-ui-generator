@@ -2,6 +2,7 @@ import "server-only";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
+import { SESSION_TTL_MS } from "./constants";
 
 // Lazy initialization to avoid build-time errors
 // JWT_SECRET validation happens at first use, not module load
@@ -36,7 +37,7 @@ export interface SessionPayload {
 }
 
 export async function createSession(userId: string, email: string) {
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
   const session: SessionPayload = { userId, email, expiresAt };
 
   const token = await new SignJWT({ ...session })

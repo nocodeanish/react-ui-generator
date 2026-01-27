@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -16,11 +17,15 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HeaderActions } from "@/components/HeaderActions";
 import { ProviderSelector } from "@/components/editor/ProviderSelector";
 import { ProjectList } from "@/components/projects/ProjectList";
+import { MobileLayout } from "@/components/layout/MobileLayout";
 import { useChat } from "@/lib/contexts/chat-context";
+import { useIsMobile } from "@/hooks/useMediaQuery";
+import { useKeyboardShortcuts, createAppShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { type ProviderId } from "@/lib/providers";
 import { PanelLeftClose, PanelLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { createProject } from "@/actions/create-project";
 
 interface Project {
   id: string;
@@ -101,6 +106,51 @@ function EditorHeader({
 export function MainContent({ user, project, projects = [] }: MainContentProps) {
   const [activeView, setActiveView] = useState<"preview" | "code">("preview");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isMobile = useIsMobile();
+  const router = useRouter();
+
+  // Keyboard shortcuts
+  const handleNewProject = useCallback(async () => {
+    if (!user) return;
+    try {
+      const newProject = await createProject();
+      router.push(`/${newProject.id}`);
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to create project:", error);
+    }
+  }, [user, router]);
+
+  const handleToggleSidebar = useCallback(() => {
+    if (user) {
+      setSidebarOpen((prev) => !prev);
+    }
+  }, [user]);
+
+  const shortcuts = createAppShortcuts({
+    onNewProject: user ? handleNewProject : undefined,
+    onToggleSidebar: user ? handleToggleSidebar : undefined,
+    onSwitchToPreview: () => setActiveView("preview"),
+    onSwitchToCode: () => setActiveView("code"),
+  });
+
+  useKeyboardShortcuts({ shortcuts, enabled: !isMobile });
+
+  // Render mobile layout on small screens
+  if (isMobile) {
+    return (
+      <FileSystemProvider initialData={project?.data}>
+        <ChatProvider
+          projectId={project?.id}
+          initialMessages={project?.messages}
+          initialProvider={(project?.provider as ProviderId) || "anthropic"}
+          initialModel={project?.model || ""}
+        >
+          <MobileLayout user={user} project={project} projects={projects} />
+        </ChatProvider>
+      </FileSystemProvider>
+    );
+  }
 
   return (
     <FileSystemProvider initialData={project?.data}>
@@ -110,12 +160,12 @@ export function MainContent({ user, project, projects = [] }: MainContentProps) 
         initialProvider={(project?.provider as ProviderId) || "anthropic"}
         initialModel={project?.model || ""}
       >
-        <div className="h-screen w-screen overflow-hidden bg-background flex">
+        <div id="main-content" className="h-screen w-screen overflow-hidden bg-background flex">
           {/* Sidebar - Project List (only for authenticated users) */}
           {user && (
             <div
-              className={`h-full bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-out flex-shrink-0 ${
-                sidebarOpen ? "w-72" : "w-0"
+              className={`h-full bg-sidebar border-r border-sidebar-border transition-[width,opacity] duration-300 ease-out flex-shrink-0 will-change-[width] ${
+                sidebarOpen ? "w-72 opacity-100" : "w-0 opacity-0"
               } overflow-hidden`}
             >
               <ProjectList projects={projects} currentProjectId={project?.id} />
@@ -150,8 +200,11 @@ export function MainContent({ user, project, projects = [] }: MainContentProps) 
                         <Sparkles className="h-4 w-4 text-primary-foreground" />
                       </div>
                       <div>
-                        <h1 className="text-sm font-semibold text-foreground">
-                          {project?.name || "UIGen"}
+                        <h1
+                          className="text-sm font-semibold text-foreground truncate max-w-[180px]"
+                          title={project?.name || "React AI UI Generator"}
+                        >
+                          {project?.name || "React AI UI Generator"}
                         </h1>
                         <p className="text-xs text-muted-foreground">
                           AI Component Generator
@@ -167,7 +220,13 @@ export function MainContent({ user, project, projects = [] }: MainContentProps) 
                 </div>
               </ResizablePanel>
 
-              <ResizableHandle className="w-[1px] bg-border/50 hover:bg-primary/50 transition-colors data-[resize-handle-active]:bg-primary" />
+              <ResizableHandle className="w-1 bg-border/50 hover:bg-primary/50 hover:w-1.5 transition-all group data-[resize-handle-active]:bg-primary">
+                <div className="hidden group-hover:flex flex-col gap-0.5 items-center justify-center h-full">
+                  <div className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                  <div className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                  <div className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                </div>
+              </ResizableHandle>
 
               {/* Right Panel - Preview/Code */}
               <ResizablePanel defaultSize={65}>
@@ -205,7 +264,13 @@ export function MainContent({ user, project, projects = [] }: MainContentProps) 
                           </div>
                         </ResizablePanel>
 
-                        <ResizableHandle className="w-[1px] bg-border/50 hover:bg-primary/50 transition-colors data-[resize-handle-active]:bg-primary" />
+                        <ResizableHandle className="w-1 bg-border/50 hover:bg-primary/50 hover:w-1.5 transition-all group data-[resize-handle-active]:bg-primary">
+                          <div className="hidden group-hover:flex flex-col gap-0.5 items-center justify-center h-full">
+                            <div className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                            <div className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                            <div className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                          </div>
+                        </ResizableHandle>
 
                         {/* Code Editor */}
                         <ResizablePanel defaultSize={72}>

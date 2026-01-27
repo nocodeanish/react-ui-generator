@@ -7,6 +7,7 @@ import {
   randomBytes,
   scryptSync,
 } from "crypto";
+import { EMPTY_API_KEYS } from "./constants";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
@@ -95,7 +96,7 @@ export function encryptApiKeys(
 export function decryptApiKeys(
   encrypted: string
 ): Record<string, string> {
-  if (!encrypted || encrypted === "{}") {
+  if (!encrypted || encrypted === EMPTY_API_KEYS) {
     return {};
   }
 

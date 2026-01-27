@@ -1,7 +1,14 @@
 // Mock provider for demo purposes (when no API key is configured)
 // Returns static React component templates
 
-import { experimental_createProviderRegistry as createProviderRegistry } from "ai";
+import { createProviderRegistry } from "ai";
+import type {
+  LanguageModelV3,
+  LanguageModelV3CallOptions,
+  LanguageModelV3GenerateResult,
+  LanguageModelV3StreamResult,
+  ProviderV3,
+} from "@ai-sdk/provider";
 
 function extractUserMessage(prompt: any[]): string {
   for (let i = prompt.length - 1; i >= 0; i--) {
@@ -31,6 +38,19 @@ function detectComponentType(message: string): "form" | "card" | "counter" {
 
 function getComponentName(type: string): string {
   return type === "form" ? "ContactForm" : type === "card" ? "Card" : "Counter";
+}
+
+// V3 usage format helper
+function createUsage(inputTotal: number, outputTotal: number) {
+  return {
+    inputTokens: { total: inputTotal, noCache: undefined, cacheRead: undefined, cacheWrite: undefined },
+    outputTokens: { total: outputTotal, text: outputTotal, reasoning: undefined },
+  };
+}
+
+// V3 finish reason format helper
+function createFinishReason(unified: "stop" | "tool-calls" | "length" | "content-filter" | "error" | "other") {
+  return { unified, raw: undefined };
 }
 
 function getMockResponse(type: string): string {
@@ -169,71 +189,69 @@ export default Counter;`;
   }
 }
 
-// Create the mock provider implementation
-function createMockProvider() {
+// Create the mock provider implementation implementing ProviderV3
+function createMockProvider(): ProviderV3 {
   return {
-    textEmbeddingModel: () => {
-      throw new Error("Text embedding not supported in mock provider");
-    },
-    languageModel: (modelId: string) => {
+    specificationVersion: "v3" as const,
+
+    languageModel: (modelId: string): LanguageModelV3 => {
       return {
-        specificationVersion: "v1" as const,
+        specificationVersion: "v3" as const,
         provider: "mock",
         modelId,
-        defaultObjectGenerationMode: undefined,
+        supportedUrls: {},
 
-        doGenerate: async (options: any) => {
-          const userMessage = extractUserMessage(options.prompt);
+        doGenerate: async (options: LanguageModelV3CallOptions): Promise<LanguageModelV3GenerateResult> => {
+          const userMessage = extractUserMessage(options.prompt as any);
           const componentType = detectComponentType(userMessage);
 
           // If we've already made tool calls (tool results exist), just return completion text
-          if (hasToolResults(options.prompt)) {
+          if (hasToolResults(options.prompt as any)) {
             const componentName = getComponentName(componentType);
             return {
-              text: `I've created the ${componentName} component. You can see it in the preview!`,
-              toolCalls: [],
-              finishReason: "stop" as const,
-              usage: { promptTokens: 100, completionTokens: 50 },
+              content: [
+                { type: "text", text: `I've created the ${componentName} component. You can see it in the preview!` },
+              ],
+              finishReason: createFinishReason("stop"),
+              usage: createUsage(100, 50),
               warnings: [],
-              rawCall: { rawPrompt: options.prompt, rawSettings: {} },
             };
           }
 
           return {
-            text: getMockResponse(componentType),
-            toolCalls: [
+            content: [
+              { type: "text", text: getMockResponse(componentType) },
               {
-                toolCallType: "function" as const,
+                type: "tool-call",
                 toolCallId: "call_mock_1",
                 toolName: "str_replace_editor",
-                args: JSON.stringify({
+                input: JSON.stringify({
                   command: "create",
                   path: "/App.jsx",
                   file_text: getAppCode(componentType),
                 }),
               },
               {
-                toolCallType: "function" as const,
+                type: "tool-call",
                 toolCallId: "call_mock_2",
                 toolName: "str_replace_editor",
-                args: JSON.stringify({
+                input: JSON.stringify({
                   command: "create",
                   path: `/components/${getComponentName(componentType)}.jsx`,
                   file_text: getComponentCode(componentType),
                 }),
               },
             ],
-            finishReason: "stop" as const,
-            usage: { promptTokens: 100, completionTokens: 200 },
+            finishReason: createFinishReason("stop"),
+            usage: createUsage(100, 200),
             warnings: [],
-            rawCall: { rawPrompt: options.prompt, rawSettings: {} },
           };
         },
 
-        doStream: async (options: any) => {
-          const userMessage = extractUserMessage(options.prompt);
+        doStream: async (options: LanguageModelV3CallOptions): Promise<LanguageModelV3StreamResult> => {
+          const userMessage = extractUserMessage(options.prompt as any);
           const componentType = detectComponentType(userMessage);
-          const alreadyHasToolResults = hasToolResults(options.prompt);
+          const alreadyHasToolResults = hasToolResults(options.prompt as any);
 
           const stream = new ReadableStream({
             async start(controller) {
@@ -241,14 +259,17 @@ function createMockProvider() {
               if (alreadyHasToolResults) {
                 const componentName = getComponentName(componentType);
                 const completionText = `I've created the ${componentName} component. You can see it in the preview!`;
+                const textId = "text_1";
+                controller.enqueue({ type: "text-start", id: textId });
                 for (const char of completionText) {
-                  controller.enqueue({ type: "text-delta", textDelta: char });
+                  controller.enqueue({ type: "text-delta", id: textId, delta: char });
                   await new Promise((resolve) => setTimeout(resolve, 15));
                 }
+                controller.enqueue({ type: "text-end", id: textId });
                 controller.enqueue({
                   type: "finish",
-                  finishReason: "stop",
-                  usage: { promptTokens: 100, completionTokens: 50 },
+                  finishReason: createFinishReason("stop"),
+                  usage: createUsage(100, 50),
                 });
                 controller.close();
                 return;
@@ -256,18 +277,20 @@ function createMockProvider() {
 
               // First call: stream text and send tool calls
               const text = getMockResponse(componentType);
+              const textId = "text_1";
+              controller.enqueue({ type: "text-start", id: textId });
               for (const char of text) {
-                controller.enqueue({ type: "text-delta", textDelta: char });
+                controller.enqueue({ type: "text-delta", id: textId, delta: char });
                 await new Promise((resolve) => setTimeout(resolve, 20));
               }
+              controller.enqueue({ type: "text-end", id: textId });
 
-              // Send tool calls
+              // Send tool calls as complete events (not start/input/end split)
               controller.enqueue({
                 type: "tool-call",
-                toolCallType: "function",
                 toolCallId: "call_mock_1",
                 toolName: "str_replace_editor",
-                args: JSON.stringify({
+                input: JSON.stringify({
                   command: "create",
                   path: "/App.jsx",
                   file_text: getAppCode(componentType),
@@ -276,10 +299,9 @@ function createMockProvider() {
 
               controller.enqueue({
                 type: "tool-call",
-                toolCallType: "function",
                 toolCallId: "call_mock_2",
                 toolName: "str_replace_editor",
-                args: JSON.stringify({
+                input: JSON.stringify({
                   command: "create",
                   path: `/components/${getComponentName(componentType)}.jsx`,
                   file_text: getComponentCode(componentType),
@@ -289,21 +311,29 @@ function createMockProvider() {
               // Send finish event
               controller.enqueue({
                 type: "finish",
-                finishReason: "stop",
-                usage: { promptTokens: 100, completionTokens: 200 },
+                finishReason: createFinishReason("stop"),
+                usage: createUsage(100, 200),
               });
 
               controller.close();
             },
           });
 
-          return {
-            stream,
-            warnings: [],
-            rawCall: { rawPrompt: options.prompt, rawSettings: {} },
-          };
+          return { stream };
         },
       };
+    },
+
+    embeddingModel: () => {
+      throw new Error("Embedding model not supported in mock provider");
+    },
+
+    textEmbeddingModel: () => {
+      throw new Error("Text embedding model not supported in mock provider");
+    },
+
+    imageModel: () => {
+      throw new Error("Image model not supported in mock provider");
     },
   };
 }

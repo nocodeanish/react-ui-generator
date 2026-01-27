@@ -7,9 +7,10 @@ import {
   useEffect,
   useState,
   useCallback,
+  useMemo,
 } from "react";
 import { useChat as useAIChat } from "@ai-sdk/react";
-import { Message } from "ai";
+import { UIMessage, DefaultChatTransport } from "ai";
 import { useFileSystem } from "./file-system-context";
 import { setHasAnonWork } from "@/lib/anon-work-tracker";
 import { type ProviderId } from "@/lib/providers";
@@ -17,17 +18,17 @@ import { type ProviderId } from "@/lib/providers";
 // Props for ChatProvider
 interface ChatContextProps {
   projectId?: string; // Only set if this is a saved project
-  initialMessages?: Message[]; // Load existing conversation history
+  initialMessages?: UIMessage[]; // Load existing conversation history
   initialProvider?: ProviderId; // Provider from project settings
   initialModel?: string; // Model from project settings
 }
 
 // Type for ChatContext value
 interface ChatContextType {
-  messages: Message[]; // Conversation history with user/assistant messages and tool calls
+  messages: UIMessage[]; // Conversation history with user/assistant messages and tool calls
   input: string; // Current text in the input field
-  handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void; // Update input state
-  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void; // Send message to API
+  setInput: (value: string) => void; // Update input state
+  handleSubmit: (e?: React.FormEvent<HTMLFormElement>) => void; // Send message to API
   status: string; // Loading state: "idle", "streaming", etc.
   error: Error | undefined; // Error state from API
   reload: () => void; // Retry last failed message
@@ -50,11 +51,29 @@ export function ChatProvider({
   // Provider and model state
   const [provider, setProvider] = useState<ProviderId>(initialProvider);
   const [model, setModel] = useState<string>(initialModel);
+  // Local input state (v6 useChat doesn't provide input/handleInputChange)
+  const [input, setInput] = useState("");
 
   // Get file system from FileSystemContext to access it here
-  const { fileSystem, handleToolCall } = useFileSystem();
+  const { fileSystem, handleToolCall, refreshTrigger } = useFileSystem();
 
-  // Use Vercel AI SDK's useChat hook for streaming + agentic loop
+  // Memoize transport to recreate when provider/model/files change
+  // This ensures the body sent to the API is always up-to-date
+  const transport = useMemo(() => {
+    return new DefaultChatTransport({
+      api: "/api/chat",
+      body: {
+        // Send current file state with each message
+        // Server reconstructs VirtualFileSystem from this
+        files: fileSystem.serialize(),
+        projectId, // Server uses this to know where to save results
+        provider, // Selected AI provider
+        model, // Selected model
+      },
+    });
+  }, [fileSystem, projectId, provider, model, refreshTrigger]);
+
+  // Use Vercel AI SDK's useChat hook for streaming + agentic loop (v6 API)
   // This handles:
   // 1. Sending messages to /api/chat
   // 2. Streaming response chunks
@@ -62,27 +81,17 @@ export function ChatProvider({
   // 4. Maintaining message history
   const {
     messages,
-    input,
-    handleInputChange,
-    handleSubmit: originalHandleSubmit,
+    sendMessage,
+    regenerate,
     status,
     error,
-    reload,
   } = useAIChat({
-    api: "/api/chat", // Our custom chat endpoint
-    initialMessages, // Load saved conversation if provided
-    body: {
-      // Send current file state with each message
-      // Server reconstructs VirtualFileSystem from this
-      files: fileSystem.serialize(),
-      projectId, // Server uses this to know where to save results
-      provider, // Selected AI provider
-      model, // Selected model
-    },
-    // Hook called when AI calls a tool
-    // We delegate to FileSystemContext to handle file operations
+    // v6 API: Use transport for API configuration
+    transport,
+    messages: initialMessages, // Load saved conversation if provided
+    // Hook called when AI calls a tool (v6: toolCall has 'input' property)
     onToolCall: ({ toolCall }) => {
-      handleToolCall(toolCall);
+      handleToolCall(toolCall as { toolName: string; input: any });
     },
     // Hook called when an error occurs
     onError: (error) => {
@@ -90,17 +99,19 @@ export function ChatProvider({
     },
   });
 
-  // Wrapper for handleSubmit that includes provider/model in body
-  const handleSubmit = useCallback((e: React.FormEvent<HTMLFormElement>) => {
-    originalHandleSubmit(e, {
-      body: {
-        files: fileSystem.serialize(),
-        projectId,
-        provider,
-        model,
-      },
-    });
-  }, [originalHandleSubmit, fileSystem, projectId, provider, model]);
+  // Wrapper for sendMessage that matches old handleSubmit API
+  const handleSubmit = useCallback((e?: React.FormEvent<HTMLFormElement>) => {
+    e?.preventDefault();
+    if (!input.trim()) return;
+
+    sendMessage({ text: input });
+    setInput(""); // Clear input after sending
+  }, [sendMessage, input]);
+
+  // Wrapper for regenerate to match old reload API
+  const reload = useCallback(() => {
+    regenerate();
+  }, [regenerate]);
 
   // Update provider and model
   const setProviderAndModel = useCallback((newProvider: ProviderId, newModel: string) => {
@@ -121,7 +132,7 @@ export function ChatProvider({
       value={{
         messages,
         input,
-        handleInputChange,
+        setInput,
         handleSubmit,
         status,
         error,

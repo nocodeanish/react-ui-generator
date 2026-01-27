@@ -45,7 +45,7 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
       : [];
 
   return (
-    <div>
+    <div role="treeitem" aria-expanded={node.type === "directory" ? isExpanded : undefined} aria-selected={isSelected}>
       <div
         className={cn(
           "flex items-center gap-2 px-2 py-1.5 cursor-pointer text-sm transition-all duration-150 mx-1 rounded-md",
@@ -55,6 +55,15 @@ function FileTreeNode({ node, level }: FileTreeNodeProps) {
         )}
         style={{ paddingLeft: `${level * 12 + 8}px` }}
         onClick={handleClick}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleClick();
+          }
+        }}
+        tabIndex={0}
+        role="button"
+        aria-label={node.type === "directory" ? `${node.name} folder, ${isExpanded ? "expanded" : "collapsed"}` : node.name}
       >
         {node.type === "directory" ? (
           <>
@@ -118,7 +127,7 @@ export function FileTree() {
 
   return (
     <ScrollArea className="h-full">
-      <div className="py-2" key={refreshTrigger}>
+      <div className="py-2" key={refreshTrigger} role="tree" aria-label="File tree">
         <div className="px-3 py-2 mb-1">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Files

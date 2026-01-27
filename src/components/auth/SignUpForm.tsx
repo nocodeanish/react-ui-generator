@@ -80,7 +80,7 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
       </div>
 
       {error && (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+        <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded p-2">
           {error}
         </div>
       )}

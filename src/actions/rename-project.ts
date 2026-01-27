@@ -3,14 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-
-// Sanitize project name
-function sanitizeName(name: string): string {
-  // Strip HTML tags and trim whitespace
-  const sanitized = name.replace(/<[^>]*>/g, "").trim();
-  // Limit to 100 characters
-  return sanitized.slice(0, 100);
-}
+import { sanitizeProjectName } from "@/lib/validation";
 
 /**
  * Rename a project
@@ -29,7 +22,7 @@ export async function renameProject(
     return { success: false, error: "Project name is required" };
   }
 
-  const sanitizedName = sanitizeName(newName);
+  const sanitizedName = sanitizeProjectName(newName);
   if (!sanitizedName) {
     return { success: false, error: "Project name cannot be empty" };
   }

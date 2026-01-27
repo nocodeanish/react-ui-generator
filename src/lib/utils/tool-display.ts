@@ -2,17 +2,14 @@
  * Formats tool invocations for user-friendly display in the chat interface
  */
 
-interface ToolInvocation {
-  toolName: string;
-  args?: Record<string, any>;
-  state?: string;
-}
-
 /**
  * Get a user-friendly display name for a tool invocation
+ * Supports AI SDK v6 tool parts (type: tool-${name}, input)
  */
-export function getToolDisplayName(tool: ToolInvocation): string {
-  const { toolName, args } = tool;
+export function getToolDisplayName(tool: { type: string; input?: unknown }): string {
+  // AI SDK v6: type is `tool-${toolName}`, input instead of args
+  const toolName = tool.type.replace(/^tool-/, '');
+  const args = tool.input as Record<string, any> | undefined;
 
   switch (toolName) {
     case "str_replace_editor": {

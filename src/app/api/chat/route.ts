@@ -1,6 +1,6 @@
 import type { FileNode } from "@/lib/file-system";
 import { VirtualFileSystem } from "@/lib/file-system";
-import { streamText } from "ai";
+import { streamText, stepCountIs } from "ai";
 import { buildStrReplaceTool } from "@/lib/tools/str-replace";
 import { buildFileManagerTool } from "@/lib/tools/file-manager";
 import { prisma } from "@/lib/prisma";
@@ -10,6 +10,13 @@ import { isValidProvider } from "@/lib/providers";
 import { generationPrompt } from "@/lib/prompts/generation";
 import { rateLimit, getClientIP } from "@/lib/rate-limit";
 import { decryptApiKeys } from "@/lib/crypto";
+import { RATE_LIMITS, EMPTY_API_KEYS } from "@/lib/constants";
+import {
+  invalidContentTypeResponse,
+  invalidJsonResponse,
+  badRequestResponse,
+  rateLimitResponse,
+} from "@/lib/api-responses";
 
 // POST handler for chat messages
 // Receives: messages array, serialized file state, optional projectId, provider, model
@@ -18,14 +25,14 @@ export async function POST(req: Request) {
   // Security: Validate content-type
   const contentType = req.headers.get("content-type");
   if (!contentType || !contentType.includes("application/json")) {
-    return new Response("Invalid content type", { status: 415 });
+    return invalidContentTypeResponse();
   }
 
   let body;
   try {
     body = await req.json();
   } catch (error) {
-    return new Response("Invalid JSON", { status: 400 });
+    return invalidJsonResponse();
   }
 
   const {
@@ -44,11 +51,11 @@ export async function POST(req: Request) {
 
   // Validate input
   if (!Array.isArray(messages)) {
-    return new Response("Invalid messages format", { status: 400 });
+    return badRequestResponse("Invalid messages format");
   }
 
   if (!files || typeof files !== "object") {
-    return new Response("Invalid files format", { status: 400 });
+    return badRequestResponse("Invalid files format");
   }
 
   // Validate provider if specified
@@ -61,21 +68,10 @@ export async function POST(req: Request) {
   if (!session) {
     // Anonymous users: 10 requests per hour
     const clientIP = getClientIP(req.headers);
-    const rateLimitResult = rateLimit(`chat-anon:${clientIP}`, {
-      limit: 10,
-      window: 60 * 60 * 1000, // 1 hour
-    });
+    const rateLimitResult = rateLimit(`chat-anon:${clientIP}`, RATE_LIMITS.CHAT_ANON);
 
     if (!rateLimitResult.success) {
-      return new Response(
-        JSON.stringify({
-          error: "Rate limit exceeded. Please sign in for unlimited access.",
-        }),
-        {
-          status: 429,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      return rateLimitResponse("Rate limit exceeded. Please sign in for unlimited access.");
     }
   }
 
@@ -87,27 +83,19 @@ export async function POST(req: Request) {
         where: { userId: session.userId },
       });
 
-      console.log("[Chat] User settings found:", !!settings, "apiKeys present:", !!settings?.apiKeys);
-
-      if (settings?.apiKeys && settings.apiKeys !== "{}") {
+      if (settings?.apiKeys && settings.apiKeys !== EMPTY_API_KEYS) {
         const userKeys = decryptApiKeys(settings.apiKeys);
-        console.log("[Chat] Decrypted keys for providers:", Object.keys(userKeys));
         userApiKey = userKeys[providerId];
-        console.log("[Chat] User API key for", providerId, "found:", !!userApiKey);
       }
     } catch (error) {
       console.error("[Chat] Failed to read user settings:", error);
     }
-  } else {
-    console.log("[Chat] No session, skipping user settings");
   }
 
   // Check if API key is available
   const envKey = process.env[PROVIDERS[providerId].envKey];
   const apiKey = userApiKey || envKey;
   const isUsingMock = isMockProvider(providerId, userApiKey);
-
-  console.log("[Chat] Provider:", providerId, "envKey present:", !!envKey, "userApiKey present:", !!userApiKey, "using mock:", isUsingMock);
 
   // If no API key for the selected provider, return error
   if (!apiKey && !isUsingMock) {
@@ -144,66 +132,85 @@ export async function POST(req: Request) {
   // Get language model for the specified provider
   const model = getLanguageModel(providerId, requestedModel, apiKey);
 
-  // Filter and clean messages for mock provider
-  // Mock provider doesn't support tool messages or complex content formats
-  let filteredMessages = messages;
-  if (isUsingMock) {
-    filteredMessages = messages
-      .filter((m: any) => m.role !== "tool") // Remove tool result messages
-      .map((m: any) => {
-        // For assistant messages with parts/content arrays, extract just the text
-        if (m.role === "assistant") {
-          let textContent = "";
+  // Normalize messages to ensure they work with streamText
+  // Handle both UIMessage format (parts) and legacy format (content)
+  // Tool messages from persisted conversations need special handling
+  const normalizedMessages = messages
+    .map((m: any) => {
+      // Filter out tool messages - they cause validation issues when loaded from DB
+      // The AI will regenerate tool calls as needed for the conversation
+      if (m.role === "tool") {
+        return null;
+      }
 
-          // Handle parts array (AI SDK format)
-          if (Array.isArray(m.parts)) {
-            textContent = m.parts
-              .filter((p: any) => p.type === "text" && typeof p.text === "string")
-              .map((p: any) => p.text)
-              .join("");
-          }
-          // Handle content array
-          else if (Array.isArray(m.content)) {
-            textContent = m.content
-              .filter((c: any) => c.type === "text" && typeof c.text === "string")
-              .map((c: any) => c.text)
-              .join("");
-          }
-          // Handle string content
-          else if (typeof m.content === "string") {
-            textContent = m.content;
-          }
+      // For assistant messages, extract only text content
+      // Skip any tool_calls or other non-text content that may be persisted
+      if (m.role === "assistant") {
+        let textContent = "";
 
-          // Return simplified message with just text content
-          return textContent ? { role: "assistant", content: textContent } : null;
+        // Handle parts array (UI SDK format)
+        if (Array.isArray(m.parts)) {
+          textContent = m.parts
+            .filter((p: any) => p.type === "text" && p.text)
+            .map((p: any) => p.text)
+            .join("");
+        }
+        // Handle content array
+        else if (Array.isArray(m.content)) {
+          textContent = m.content
+            .filter((c: any) => (c.type === "text" && c.text) || typeof c === "string")
+            .map((c: any) => (typeof c === "string" ? c : c.text))
+            .join("");
+        }
+        // Handle string content
+        else if (typeof m.content === "string") {
+          textContent = m.content;
         }
 
-        // For user messages, ensure content is a string
-        if (m.role === "user") {
-          let textContent = "";
-          if (typeof m.content === "string") {
-            textContent = m.content;
-          } else if (Array.isArray(m.content)) {
-            textContent = m.content
-              .filter((c: any) => c.type === "text" && typeof c.text === "string")
-              .map((c: any) => c.text)
-              .join("");
-          }
-          return textContent ? { role: "user", content: textContent } : null;
+        // Skip assistant messages with no text (e.g., tool-only responses)
+        if (!textContent || textContent.trim() === "") {
+          return null;
         }
 
-        return m;
-      })
-      .filter(Boolean); // Remove null entries
-  }
+        return { role: "assistant", content: textContent };
+      }
+
+      // For user messages
+      if (m.role === "user") {
+        let textContent = "";
+        if (typeof m.content === "string") {
+          textContent = m.content;
+        } else if (Array.isArray(m.content)) {
+          textContent = m.content
+            .filter((c: any) => c.type === "text" || typeof c === "string")
+            .map((c: any) => (typeof c === "string" ? c : c.text))
+            .join("");
+        } else if (m.parts && Array.isArray(m.parts)) {
+          textContent = m.parts
+            .filter((p: any) => p.type === "text")
+            .map((p: any) => p.text)
+            .join("");
+        }
+        return { role: "user", content: textContent || "" };
+      }
+
+      // System messages pass through
+      if (m.role === "system") {
+        return { role: "system", content: m.content || "" };
+      }
+
+      return null; // Filter unknown roles
+    })
+    .filter((m: { role: string; content: string } | null): m is { role: string; content: string } => m !== null); // Remove null entries with type guard
 
   // Stream text with tool use (agentic loop)
   // AI can call tools to create/edit files; we execute them in the fileSystem
   const result = streamText({
     model,
-    messages: filteredMessages,
-    maxTokens: 10_000,
-    maxSteps: isUsingMock ? 2 : 40, // Mock provider needs fewer steps
+    messages: normalizedMessages as any,
+    maxOutputTokens: 10_000,
+    // AI SDK v6: Use stopWhen instead of maxSteps for controlling the agentic loop
+    stopWhen: stepCountIs(isUsingMock ? 2 : 40),
     onError: (err: any) => {
       // Security: Log full error internally but don't expose to client
       console.error(`[AI Error] Provider: ${providerId}`, err);
@@ -255,7 +262,8 @@ export async function POST(req: Request) {
   });
 
   // Return SSE response (Server-Sent Events for streaming)
-  return result.toDataStreamResponse();
+  // AI SDK v6: Use toUIMessageStreamResponse for useChat compatibility
+  return result.toUIMessageStreamResponse();
 }
 
 // Vercel timeout: 120 seconds for API route

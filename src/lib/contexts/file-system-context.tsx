@@ -10,9 +10,10 @@ import React, {
 import { VirtualFileSystem, FileNode } from "@/lib/file-system";
 
 // Represents a tool call from Claude (str_replace_editor or file_manager)
+// In AI SDK v6, the property is 'input' instead of 'args'
 interface ToolCall {
   toolName: string;
-  args: any; // Tool-specific arguments
+  input: any; // Tool-specific arguments (v6 API)
 }
 
 // Context API type definition for FileSystemContext
@@ -159,7 +160,7 @@ export function FileSystemProvider({
   // Routes to either str_replace_editor (file content) or file_manager (file ops)
   const handleToolCall = useCallback(
     (toolCall: ToolCall) => {
-      const { toolName, args } = toolCall;
+      const { toolName, input: args } = toolCall;
 
       // STR_REPLACE_EDITOR TOOL: Create/edit files
       // Commands: create, str_replace, insert, view

@@ -6,7 +6,8 @@ import {
   createImportMap,
   createPreviewHTML,
 } from "@/lib/transform/jsx-transformer";
-import { AlertCircle, Zap, MonitorSmartphone } from "lucide-react";
+import { AlertCircle, Zap, MonitorSmartphone, Loader2 } from "lucide-react";
+import { PREVIEW_LOADING_MESSAGES } from "@/lib/design-tokens";
 
 export function PreviewFrame() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -14,6 +15,20 @@ export function PreviewFrame() {
   const [error, setError] = useState<string | null>(null);
   const [entryPoint, setEntryPoint] = useState<string>("/App.jsx");
   const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const [isCompiling, setIsCompiling] = useState(false);
+  const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
+
+  // Rotate loading messages during compilation
+  useEffect(() => {
+    if (!isCompiling) {
+      setLoadingMsgIndex(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setLoadingMsgIndex((i) => (i + 1) % PREVIEW_LOADING_MESSAGES.length);
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [isCompiling]);
 
   useEffect(() => {
     const updatePreview = () => {
@@ -74,6 +89,7 @@ export function PreviewFrame() {
           return;
         }
 
+        setIsCompiling(true);
         const { importMap, styles, errors } = createImportMap(files);
         const previewHTML = createPreviewHTML(foundEntryPoint, importMap, styles, errors);
 
@@ -89,6 +105,7 @@ export function PreviewFrame() {
 
           setError(null);
         }
+        setIsCompiling(false);
       } catch (err) {
         console.error("Preview error:", err);
         setError(err instanceof Error ? err.message : "Unknown preview error");
@@ -102,17 +119,17 @@ export function PreviewFrame() {
     if (error === "firstLoad") {
       return (
         <div className="h-full flex items-center justify-center p-8">
-          <div className="text-center max-w-sm">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary mb-4">
+          <div className="text-center max-w-sm animate-fade-in">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary mb-4 animate-breathing">
               <Zap className="h-6 w-6 text-primary-foreground" />
             </div>
-            <h3 className="text-base font-semibold text-neutral-800 mb-2">
+            <h3 className="text-base font-semibold text-foreground mb-2">
               Live Preview
             </h3>
-            <p className="text-sm text-neutral-500 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Your component will appear here once generated
             </p>
-            <div className="flex items-center justify-center gap-2 text-xs text-neutral-500">
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
               <MonitorSmartphone className="h-3.5 w-3.5" />
               <span>Real-time rendering</span>
             </div>
@@ -123,17 +140,37 @@ export function PreviewFrame() {
 
     return (
       <div className="h-full flex items-center justify-center p-8">
-        <div className="text-center max-w-sm">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-neutral-100 border border-neutral-200 mb-4">
-            <AlertCircle className="h-6 w-6 text-neutral-500" />
+        <div className="text-center max-w-sm animate-fade-in">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-muted border border-border mb-4">
+            <AlertCircle className="h-6 w-6 text-muted-foreground" />
           </div>
-          <h3 className="text-base font-semibold text-neutral-800 mb-2">
+          <h3 className="text-base font-semibold text-foreground mb-2">
             No Preview Available
           </h3>
-          <p className="text-sm text-neutral-500">{error}</p>
-          <p className="text-xs text-neutral-400 mt-3">
+          <p className="text-sm text-muted-foreground">{error}</p>
+          <p className="text-xs text-muted-foreground/70 mt-3">
             Create a React component using the AI assistant
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show compiling state
+  if (isCompiling) {
+    return (
+      <div className="h-full flex items-center justify-center p-8">
+        <div className="text-center max-w-sm animate-fade-in">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10 mb-4">
+            <Loader2 className="h-6 w-6 text-primary animate-spin" />
+          </div>
+          <h3 className="text-base font-semibold text-foreground mb-2">
+            {PREVIEW_LOADING_MESSAGES[loadingMsgIndex]}
+          </h3>
+          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse-glow" />
+            <span>Building preview...</span>
+          </div>
         </div>
       </div>
     );

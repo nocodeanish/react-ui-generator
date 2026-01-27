@@ -1,24 +1,26 @@
 "use client";
 
-import { ChangeEvent, FormEvent, KeyboardEvent } from "react";
+import { FormEvent, KeyboardEvent } from "react";
 import { Send, Loader2 } from "lucide-react";
 
 interface MessageInputProps {
   input: string;
-  handleInputChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
-  handleSubmit: (e: FormEvent<HTMLFormElement>) => void;
+  setInput: (value: string) => void;
+  handleSubmit: (e?: FormEvent<HTMLFormElement>) => void;
   isLoading: boolean;
   isDisabled?: boolean;
   disabledMessage?: string;
+  maxLength?: number;
 }
 
 export function MessageInput({
   input,
-  handleInputChange,
+  setInput,
   handleSubmit,
   isLoading,
   isDisabled = false,
   disabledMessage,
+  maxLength = 4000,
 }: MessageInputProps) {
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey && !isDisabled) {
@@ -33,12 +35,18 @@ export function MessageInput({
   const inputDisabled = isLoading || isDisabled;
   const buttonDisabled = isLoading || isDisabled || !input.trim();
 
+  // Character counter logic
+  const charCount = input.length;
+  const charPercentage = (charCount / maxLength) * 100;
+  const showCounter = charPercentage > 80;
+  const isWarning = charPercentage > 95;
+
   return (
     <form onSubmit={handleSubmit} className="relative">
       <div className="relative">
         <textarea
           value={input}
-          onChange={handleInputChange}
+          onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={isDisabled && disabledMessage ? disabledMessage : "Describe the React component you want to create..."}
           disabled={inputDisabled}
@@ -77,9 +85,16 @@ export function MessageInput({
           )}
         </button>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground text-center">
-        Press Enter to send, Shift+Enter for new line
-      </p>
+      <div className="mt-2 flex items-center justify-center gap-2">
+        <p className="text-xs text-muted-foreground">
+          Press Enter to send, Shift+Enter for new line
+        </p>
+        {showCounter && (
+          <span className={`text-xs ${isWarning ? 'text-amber-500' : 'text-muted-foreground'}`}>
+            {charCount}/{maxLength}
+          </span>
+        )}
+      </div>
     </form>
   );
 }

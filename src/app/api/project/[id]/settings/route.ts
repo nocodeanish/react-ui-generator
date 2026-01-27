@@ -4,26 +4,27 @@
 
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PROVIDERS, isValidProvider, type ProviderId } from "@/lib/providers";
-
-type ProjectSettings = {
-  provider: string;
-  model: string;
-};
+import { isValidProvider } from "@/lib/providers";
+import {
+  unauthorizedResponse,
+  notFoundResponse,
+  invalidContentTypeResponse,
+  invalidJsonResponse,
+  badRequestResponse,
+  serverErrorResponse,
+} from "@/lib/api-responses";
+import type { ProjectSettings } from "@/lib/api-types";
 
 // GET: Get project settings
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: projectId } = await params;
 
   const session = await getSession();
   if (!session) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return unauthorizedResponse();
   }
 
   try {
@@ -39,10 +40,7 @@ export async function GET(
     });
 
     if (!project) {
-      return new Response(JSON.stringify({ error: "Project not found" }), {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
-      });
+      return notFoundResponse("Project not found");
     }
 
     const settings: ProjectSettings = {
@@ -53,10 +51,7 @@ export async function GET(
     return Response.json(settings);
   } catch (error) {
     console.error("[ProjectSettings] Failed to get settings:", error);
-    return new Response(
-      JSON.stringify({ error: "Failed to get project settings" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return serverErrorResponse("Failed to get project settings");
   }
 }
 
@@ -69,29 +64,20 @@ export async function PATCH(
 
   const session = await getSession();
   if (!session) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return unauthorizedResponse();
   }
 
   // Validate content type
   const contentType = req.headers.get("content-type");
   if (!contentType || !contentType.includes("application/json")) {
-    return new Response(JSON.stringify({ error: "Invalid content type" }), {
-      status: 415,
-      headers: { "Content-Type": "application/json" },
-    });
+    return invalidContentTypeResponse();
   }
 
   let body: { provider?: string; model?: string };
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return invalidJsonResponse();
   }
 
   const { provider, model } = body;
@@ -99,19 +85,13 @@ export async function PATCH(
   // Validate provider if provided
   if (provider !== undefined) {
     if (!isValidProvider(provider)) {
-      return new Response(
-        JSON.stringify({ error: `Invalid provider: ${provider}` }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+      return badRequestResponse(`Invalid provider: ${provider}`);
     }
   }
 
   // Validate model if provided (just check it's a string)
   if (model !== undefined && typeof model !== "string") {
-    return new Response(
-      JSON.stringify({ error: "Model must be a string" }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
+    return badRequestResponse("Model must be a string");
   }
 
   try {
@@ -124,10 +104,7 @@ export async function PATCH(
     });
 
     if (!existingProject) {
-      return new Response(JSON.stringify({ error: "Project not found" }), {
-        status: 404,
-        headers: { "Content-Type": "application/json" },
-      });
+      return notFoundResponse("Project not found");
     }
 
     // Build update data
@@ -161,9 +138,6 @@ export async function PATCH(
     return Response.json(settings);
   } catch (error) {
     console.error("[ProjectSettings] Failed to update settings:", error);
-    return new Response(
-      JSON.stringify({ error: "Failed to update project settings" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return serverErrorResponse("Failed to update project settings");
   }
 }

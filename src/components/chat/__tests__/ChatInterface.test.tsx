@@ -35,6 +35,15 @@ vi.mock("lucide-react", () => ({
   Wand2: ({ className }: { className?: string }) => (
     <div className={className}>Wand2</div>
   ),
+  ExternalLink: ({ className }: { className?: string }) => (
+    <div className={className}>ExternalLink</div>
+  ),
+  Settings: ({ className }: { className?: string }) => (
+    <div className={className}>Settings</div>
+  ),
+  X: ({ className }: { className?: string }) => (
+    <div className={className}>X</div>
+  ),
 }));
 
 // Mock the child components
@@ -65,9 +74,11 @@ vi.mock("../MessageInput", () => ({
 const mockUseChat = {
   messages: [],
   input: "",
+  setInput: vi.fn(),
   handleInputChange: vi.fn(),
   handleSubmit: vi.fn(),
   status: "idle" as const,
+  provider: "anthropic" as const,
 };
 
 beforeEach(() => {
@@ -226,7 +237,8 @@ test("should display error banner when error exists", () => {
 
   render(<ChatInterface />);
 
-  expect(screen.getByText("Error")).toBeDefined();
+  // New UI shows "Request Failed" as the title for unknown errors
+  expect(screen.getByText("Request Failed")).toBeDefined();
   expect(screen.getByText(/Test error message/)).toBeDefined();
 });
 
@@ -239,7 +251,9 @@ test("should not display error banner when no error", () => {
 
   render(<ChatInterface />);
 
-  expect(screen.queryByText("Error")).toBeNull();
+  // No error title should be present
+  expect(screen.queryByText("Request Failed")).toBeNull();
+  expect(screen.queryByText("Invalid API Key")).toBeNull();
 });
 
 test("should display Retry button when error exists", () => {
@@ -275,8 +289,9 @@ test("should call reload when Retry button is clicked", async () => {
   expect(mockReload).toHaveBeenCalledTimes(1);
 });
 
-test("should display API key setup instructions for ANTHROPIC_API_KEY errors", () => {
-  const apiKeyError = new Error("ANTHROPIC_API_KEY is required for AI generation");
+test("should display API key error with actionable guidance for invalid key errors", () => {
+  // New error detection uses patterns like "invalid api key", "unauthorized", etc.
+  const apiKeyError = new Error("Invalid API key provided");
   (useChat as any).mockReturnValue({
     ...mockUseChat,
     error: apiKeyError,
@@ -285,12 +300,14 @@ test("should display API key setup instructions for ANTHROPIC_API_KEY errors", (
 
   render(<ChatInterface />);
 
-  expect(screen.getByText(/Setup Required/)).toBeDefined();
-  expect(screen.getByText(/Add your Anthropic API key/)).toBeDefined();
+  // New UI shows "Invalid API Key" title for API key errors
+  expect(screen.getByText("Invalid API Key")).toBeDefined();
+  // Shows actionable guidance
+  expect(screen.getByText(/How to fix this/)).toBeDefined();
 });
 
-test("should show console.anthropic.com link for API key errors", () => {
-  const apiKeyError = new Error("ANTHROPIC_API_KEY not found");
+test("should show provider link for API key errors", () => {
+  const apiKeyError = new Error("unauthorized - invalid api key");
   (useChat as any).mockReturnValue({
     ...mockUseChat,
     error: apiKeyError,
@@ -299,12 +316,12 @@ test("should show console.anthropic.com link for API key errors", () => {
 
   render(<ChatInterface />);
 
-  const setupText = screen.getByText(/console\.anthropic\.com/);
-  expect(setupText).toBeDefined();
+  // Should show link to get API key from provider
+  expect(screen.getByText(/Get Anthropic API key/)).toBeDefined();
 });
 
-test("should not show API key instructions for non-API-key errors", () => {
-  const networkError = new Error("Network request failed");
+test("should not show API key guidance for non-API-key errors", () => {
+  const networkError = new Error("Connection refused");
   (useChat as any).mockReturnValue({
     ...mockUseChat,
     error: networkError,
@@ -313,8 +330,9 @@ test("should not show API key instructions for non-API-key errors", () => {
 
   render(<ChatInterface />);
 
-  expect(screen.queryByText(/Setup Required/)).toBeNull();
-  expect(screen.queryByText(/console\.anthropic\.com/)).toBeNull();
+  // Should show connection error, not API key error
+  expect(screen.getByText("Connection Error")).toBeDefined();
+  expect(screen.queryByText(/Get Anthropic API key/)).toBeNull();
 });
 
 test("should display default error message when error.message is undefined", () => {
@@ -329,7 +347,8 @@ test("should display default error message when error.message is undefined", () 
 
   render(<ChatInterface />);
 
-  expect(screen.getByText(/An error occurred while processing your message/)).toBeDefined();
+  // The parseProviderError function returns "An error occurred while communicating with {provider}"
+  expect(screen.getByText(/An error occurred/)).toBeDefined();
 });
 
 test("error banner should have correct styling classes", () => {
@@ -383,7 +402,7 @@ test("should clear error banner when error becomes undefined", () => {
   });
 
   rerender(<ChatInterface />);
-  expect(screen.getByText("Error")).toBeDefined();
+  expect(screen.getByText("Request Failed")).toBeDefined();
 
   // Update to no error
   (useChat as any).mockReturnValue({
@@ -393,7 +412,7 @@ test("should clear error banner when error becomes undefined", () => {
   });
 
   rerender(<ChatInterface />);
-  expect(screen.queryByText("Error")).toBeNull();
+  expect(screen.queryByText("Request Failed")).toBeNull();
 });
 
 test("should handle multiple consecutive errors", async () => {

@@ -5,19 +5,19 @@
 
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PROVIDERS, type ProviderId } from "@/lib/providers";
+import { PROVIDERS } from "@/lib/providers";
 import { encryptApiKeys, decryptApiKeys, getKeyLastFour } from "@/lib/crypto";
-import { rateLimit, getClientIP } from "@/lib/rate-limit";
-
-type ProviderStatus = {
-  configured: boolean;
-  source?: "env" | "user";
-  lastFour?: string;
-};
-
-type SettingsResponse = {
-  providers: Record<string, ProviderStatus>;
-};
+import { rateLimit } from "@/lib/rate-limit";
+import { RATE_LIMITS, EMPTY_API_KEYS } from "@/lib/constants";
+import {
+  unauthorizedResponse,
+  rateLimitResponse,
+  invalidContentTypeResponse,
+  invalidJsonResponse,
+  badRequestResponse,
+  serverErrorResponse,
+} from "@/lib/api-responses";
+import type { ProviderStatus, SettingsResponse } from "@/lib/api-types";
 
 // GET: Get user's configured providers
 export async function GET(req: Request) {
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
         where: { userId: session.userId },
       });
 
-      if (settings?.apiKeys && settings.apiKeys !== "{}") {
+      if (settings?.apiKeys && settings.apiKeys !== EMPTY_API_KEYS) {
         const userKeys = decryptApiKeys(settings.apiKeys);
 
         for (const [id, key] of Object.entries(userKeys)) {
@@ -76,60 +76,38 @@ export async function POST(req: Request) {
   // Must be authenticated
   const session = await getSession();
   if (!session) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return unauthorizedResponse();
   }
 
-  // Rate limit
-  const clientIP = getClientIP(req.headers);
-  const rateLimitResult = rateLimit(`settings:${session.userId}`, {
-    limit: 10,
-    window: 60 * 60 * 1000, // 10 changes per hour
-  });
+  // Rate limit: 10 changes per hour
+  const rateLimitResult = rateLimit(`settings:${session.userId}`, RATE_LIMITS.SETTINGS);
 
   if (!rateLimitResult.success) {
-    return new Response(
-      JSON.stringify({ error: "Rate limit exceeded. Try again later." }),
-      { status: 429, headers: { "Content-Type": "application/json" } }
-    );
+    return rateLimitResponse("Rate limit exceeded. Try again later.");
   }
 
   // Validate content type
   const contentType = req.headers.get("content-type");
   if (!contentType || !contentType.includes("application/json")) {
-    return new Response(JSON.stringify({ error: "Invalid content type" }), {
-      status: 415,
-      headers: { "Content-Type": "application/json" },
-    });
+    return invalidContentTypeResponse();
   }
 
   let body: { apiKeys?: Record<string, string> };
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return invalidJsonResponse();
   }
 
   const { apiKeys } = body;
   if (!apiKeys || typeof apiKeys !== "object") {
-    return new Response(JSON.stringify({ error: "Invalid apiKeys format" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return badRequestResponse("Invalid apiKeys format");
   }
 
   // Validate provider IDs
   for (const key of Object.keys(apiKeys)) {
     if (!(key in PROVIDERS)) {
-      return new Response(
-        JSON.stringify({ error: `Invalid provider: ${key}` }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
+      return badRequestResponse(`Invalid provider: ${key}`);
     }
   }
 
@@ -141,7 +119,7 @@ export async function POST(req: Request) {
 
     // Merge with existing keys
     let existingKeys: Record<string, string> = {};
-    if (existingSettings?.apiKeys && existingSettings.apiKeys !== "{}") {
+    if (existingSettings?.apiKeys && existingSettings.apiKeys !== EMPTY_API_KEYS) {
       existingKeys = decryptApiKeys(existingSettings.apiKeys);
     }
 
@@ -158,7 +136,7 @@ export async function POST(req: Request) {
     // Encrypt and save
     const encryptedKeys = Object.keys(updatedKeys).length > 0
       ? encryptApiKeys(updatedKeys)
-      : "{}";
+      : EMPTY_API_KEYS;
 
     await prisma.userSettings.upsert({
       where: { userId: session.userId },
@@ -197,10 +175,7 @@ export async function POST(req: Request) {
     return Response.json({ success: true, providers });
   } catch (error) {
     console.error("[Settings] Failed to save settings:", error);
-    return new Response(
-      JSON.stringify({ error: "Failed to save settings" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return serverErrorResponse("Failed to save settings");
   }
 }
 
@@ -208,24 +183,18 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   const session = await getSession();
   if (!session) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return unauthorizedResponse();
   }
 
   try {
     await prisma.userSettings.update({
       where: { userId: session.userId },
-      data: { apiKeys: "{}" },
+      data: { apiKeys: EMPTY_API_KEYS },
     });
 
     return Response.json({ success: true });
   } catch (error) {
     console.error("[Settings] Failed to delete settings:", error);
-    return new Response(
-      JSON.stringify({ error: "Failed to delete settings" }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return serverErrorResponse("Failed to delete settings");
   }
 }
