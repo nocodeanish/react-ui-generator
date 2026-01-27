@@ -138,7 +138,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - **Database:** Prisma ORM with SQLite
 - **Security:** AES-256-GCM encryption for API keys, scrypt key derivation
 - **Code Editor:** Monaco Editor, Babel standalone (JSX transform)
-- **Testing:** Vitest, React Testing Library (252 tests)
+- **Testing:** Vitest, React Testing Library (556 tests)
 - **Authentication:** JWT (jose), bcrypt
 
 ## Topics
@@ -168,8 +168,9 @@ npm run setup            # Full setup (install + generate + migrate)
 npm run db:reset         # Reset database (WARNING: deletes all data)
 
 # Testing & Quality
-npm run test             # Run test suite (252 tests)
+npm run test             # Run test suite (556 tests)
 npm run test -- <file>   # Run specific test file
+npm run test -- --run    # Run all tests once (no watch)
 npm run lint             # Run ESLint
 ```
 
@@ -180,7 +181,7 @@ npm run lint             # Run ESLint
 │   ├── app/                    # Next.js app router pages
 │   │   ├── api/
 │   │   │   ├── chat/          # AI chat API endpoint
-│   │   │   ├── settings/      # User API key management
+│   │   │   ├── settings/      # User API key management (with validate/ and check/ subpaths)
 │   │   │   └── project/       # Project settings API
 │   │   └── [projectId]/       # Project editor page
 │   ├── components/            # React components
@@ -191,7 +192,12 @@ npm run lint             # Run ESLint
 │   │   ├── projects/         # Project list and management
 │   │   ├── settings/         # Settings dialog
 │   │   ├── providers/        # Theme provider
-│   │   └── ui/               # Radix UI components
+│   │   ├── layout/           # Mobile layout components
+│   │   ├── onboarding/       # Onboarding tooltips
+│   │   └── ui/               # Radix UI components (toast, skeleton, tooltip, etc.)
+│   ├── hooks/                 # Custom React hooks
+│   │   ├── useMediaQuery.ts  # SSR-safe media query detection
+│   │   └── useKeyboardShortcuts.ts # Global keyboard shortcuts
 │   ├── lib/                   # Core utilities
 │   │   ├── contexts/         # React contexts (Chat, FileSystem)
 │   │   ├── providers/        # AI provider registry and mock
@@ -200,7 +206,13 @@ npm run lint             # Run ESLint
 │   │   ├── provider.ts       # Multi-provider AI integration
 │   │   ├── crypto.ts         # API key encryption (AES-256-GCM)
 │   │   ├── auth.ts           # JWT authentication
-│   │   └── rate-limit.ts     # Rate limiting
+│   │   ├── rate-limit.ts     # Rate limiting
+│   │   ├── constants.ts      # Centralized constants
+│   │   ├── validation.ts     # Input validation utilities
+│   │   ├── api-responses.ts  # HTTP response helpers
+│   │   ├── api-key-validators.ts # Provider key validation
+│   │   ├── api-types.ts      # Shared API type definitions
+│   │   └── design-tokens.ts  # UI design tokens
 │   └── actions/               # Server actions
 │       ├── index.ts          # Auth (sign up, sign in)
 │       ├── create-project.ts # Create new project

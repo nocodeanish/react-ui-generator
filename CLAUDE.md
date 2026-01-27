@@ -10,13 +10,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run build` - Create production build
 - `npm run start` - Start production server
 
+
 ### Database & Setup
 - `npm run setup` - Install dependencies, generate Prisma client, run migrations
 - `npm run db:reset` - Reset database (removes all data, re-runs migrations)
 
 ### Testing & Linting
-- `npm run test` - Run all tests with Vitest
+- `npm run test` - Run all tests with Vitest (watch mode)
+- `npm run test -- --run` - Run all tests once (no watch)
 - `npm run test -- <filename>` - Run tests for a specific file
+- `npm run test -- --run src/lib/__tests__/file-system.test.ts` - Run specific test file once
 - `npm run lint` - Run ESLint
 
 ### Environment Setup
@@ -82,6 +85,7 @@ Three main flows interconnect:
 - `src/lib/transform/jsx-transformer.ts` - Babel JSX transformation for preview. Creates import maps pointing to blob URLs
 - `src/lib/anon-work-tracker.ts` - Tracks anonymous user work in sessionStorage
 - `src/lib/rate-limit.ts` - In-memory rate limiting for auth and API endpoints
+- `src/lib/provider-errors.ts` - Error parsing and mapping for provider API responses
 
 ### Backend Architecture
 
@@ -162,6 +166,8 @@ Three main flows interconnect:
 - Sign in: 5 attempts per 15 minutes per IP
 - Chat API (anonymous): 10 requests per hour per IP
 - Settings API: 10 changes per hour per user
+- API Key Validation: 10 attempts per hour per user
+- API Key Check: 20 checks per hour per user
 
 **Authentication Security**:
 - Timing attack prevention on login (always runs bcrypt.compare)
@@ -193,9 +199,27 @@ Three main flows interconnect:
 - Keys never exposed to client - only last 4 chars shown for identification
 
 **Settings API** (`src/app/api/settings/route.ts`):
-- `GET`: Returns provider configuration status (configured, source: env/user, lastFour)
+- `GET`: Returns provider configuration status (configured, source: env/user, lastFour, validated)
 - `POST`: Encrypts and saves API keys. Rate limited: 10 changes per hour per user
 - `DELETE`: Removes all user API keys
+
+**API Key Validation API** (`src/app/api/settings/validate/route.ts`):
+- `POST`: Validates API key before saving by making lightweight test request to provider
+- Makes provider-specific validation calls (models endpoint for most, auth/key for OpenRouter)
+- Rate limited: 10 attempts per hour per user
+- Returns `ValidationResult` with provider, valid boolean, and parsed error if invalid
+
+**API Key Check API** (`src/app/api/settings/check/route.ts`):
+- `POST`: Checks validity of stored (encrypted) API key
+- Decrypts key server-side, validates with provider, returns status
+- Rate limited: 20 checks per hour per user
+- Returns `CheckResult` with provider, valid boolean, error, and message
+
+**Provider Error Mapping** (`src/lib/provider-errors.ts`):
+- Maps cryptic API errors to user-friendly messages
+- Categorizes errors: invalid_key, expired, rate_limit, insufficient_quota, network, unknown
+- Provides actionable guidance and links to provider dashboards
+- Exports `parseProviderError()`, `PROVIDER_KEY_URLS`, `ProviderError` type
 
 **Project Settings API** (`src/app/api/project/[id]/settings/route.ts`):
 - `GET`: Returns project's provider and model
@@ -222,11 +246,21 @@ Three main flows interconnect:
 
 3. **Context Composition**: FileSystemContext provides reactive file system. ChatContext uses it to execute tool calls. Separates concerns: ChatContext handles messaging, FileSystemContext handles state.
 
-4. **Runtime JSX Transformation**: Preview component uses Babel standalone to transform JSX to JavaScript at runtime. Creates blob URLs for modules. Generates HTML with error boundaries and import maps.
+4. **Runtime JSX Transformation**: Preview component uses Babel standalone to transform JSX to JavaScript at runtime. Creates blob URLs for modules. Generates HTML with error boundaries and import maps. The `@/` import alias maps to local files in the virtual file system.
 
 5. **Demo Mode Limiting**: Frontend detects demo mode from response text patterns and blocks input after 1 message, prompting users to add API key.
 
 6. **Safe Message Handling**: MessageList extracts text from multiple message formats (string, array, parts) to handle both live and persisted messages.
+
+7. **API Key Validation Flow**: When saving API keys, validates with provider before storing. On failure, shows actionable error with category (invalid key, expired, rate limit, quota exceeded) and links to provider dashboard. ProviderSelector shows health indicators for configured providers.
+
+## Debugging Tips
+
+- **Preview not updating**: Check `src/lib/transform/jsx-transformer.ts` for transformation errors. The transformer creates blob URLs for each module.
+- **Tool calls not executing**: Verify `ChatContext` is delegating to `FileSystemContext` correctly. Check browser console for VirtualFileSystem errors.
+- **Database issues**: Run `npm run db:reset` to wipe and reinitialize. Check `prisma/dev.db` exists.
+- **API key not working**: Priority order is environment variable → user-stored key → mock provider. Check `/api/settings` GET response for configuration status. Use `/api/settings/check` to validate stored keys.
+- **API key validation errors**: Check `src/lib/provider-errors.ts` for error category mapping. Common issues: invalid key format, expired key, rate limit exceeded, insufficient quota.
 
 ## Testing
 
@@ -240,4 +274,76 @@ Tests are colocated in `__tests__` directories (Vitest + React Testing Library):
 
 Run with `npm run test` or `npm run test -- <filename>`. Environment: jsdom (configured in `vitest.config.mts`)
 
-Current test count: 265 tests across 11 test files.
+Current test count: 556 tests across 25 test files.
+
+### New Test Files (since last push)
+- `src/lib/__tests__/constants.test.ts` - Constants validation
+- `src/lib/__tests__/validation.test.ts` - Email/password/project name validation
+- `src/lib/__tests__/api-responses.test.ts` - HTTP response helpers
+- `src/lib/__tests__/api-key-validators.test.ts` - Provider-specific key validation
+- `src/lib/__tests__/crypto.test.ts` - AES-256-GCM encryption
+- `src/lib/__tests__/rate-limit.test.ts` - Rate limiting logic
+- `src/lib/__tests__/anon-work-tracker.test.ts` - Anonymous work tracking
+
+## Centralized Utilities
+
+The following utilities centralize commonly-used logic:
+
+**Constants** (`src/lib/constants.ts`):
+- `RATE_LIMITS` - All rate limiting configurations (signup, signin, chat, settings, validate, check)
+- `SESSION_TTL_MS` - Session timeout (7 days)
+- `FILE_LIMITS` - VirtualFileSystem limits (max size, count, extensions)
+- `BCRYPT_ROUNDS`, `EMPTY_API_KEYS`, `VALIDATION_TIMEOUT_MS`
+- `ALLOWED_EXTENSIONS` - Whitelist of file extensions
+- `PROJECT_NAME_MAX_LENGTH`, `DEFAULT_PROVIDER`
+
+**Validation** (`src/lib/validation.ts`):
+- `validateEmail()`, `validatePassword()` - Input validation with regex
+- `normalizeEmail()` - Lowercase and trim email
+- `sanitizeProjectName()` - HTML stripping, trimming, truncation (security-first order)
+
+**API Responses** (`src/lib/api-responses.ts`):
+- `jsonResponse()`, `errorResponse()` - Base response helpers
+- `unauthorizedResponse()`, `badRequestResponse()`, `notFoundResponse()`
+- `invalidContentTypeResponse()`, `invalidJsonResponse()`
+- `rateLimitResponse()`, `serverErrorResponse()`
+- Consistent JSON error format across all API routes
+
+**API Key Validators** (`src/lib/api-key-validators.ts`):
+- `validateApiKey(provider, key)` - Unified validation with 10-second timeout
+- `fetchWithTimeout()` - AbortController-based timeout handling
+- Provider-specific validators: `validateAnthropicKey()`, `validateOpenAIKey()`, `validateGoogleKey()`, `validateOpenRouterKey()`, `validateXAIKey()`
+- `KEY_VALIDATORS` - Registry mapping provider ID to validator function
+
+**API Types** (`src/lib/api-types.ts`):
+- `ProviderStatus` - API key configuration status (configured, source, lastFour, validated, validationError)
+- `SettingsResponse` - Response from GET /api/settings
+- `ValidationResult` - Response from POST /api/settings/validate
+- `CheckResult` - Response from POST /api/settings/check
+- `ProjectSettings` - Project provider/model settings
+
+**Design Tokens** (`src/lib/design-tokens.ts`):
+- `ICON_SIZES` - Consistent icon sizing (xs: 12px through xl: 32px)
+- `ANIMATION_DURATIONS` - Timing for micro-interactions (fast, normal, medium, slow)
+- `BORDER_RADIUS` - Tailwind border radius classes
+- `SPACING` - Gap/padding tokens
+- `TOUCH_TARGETS` - Minimum touch target sizes for accessibility (44px/48px)
+- `Z_INDEX` - Layering scale (dropdown, sticky, modal, popover, toast, tooltip)
+- `LOADING_MESSAGES`, `PREVIEW_LOADING_MESSAGES` - Playful loading text
+- `PROVIDER_COLORS` - Brand colors for each AI provider
+- `BREAKPOINTS` - Responsive design breakpoints (sm, md, lg, xl, 2xl)
+
+**Hooks** (`src/hooks/`):
+- `useMediaQuery(query)` - SSR-safe media query detection
+- `useIsMobile()`, `useIsTablet()`, `useIsDesktop()` - Preset breakpoint hooks
+- `usePrefersReducedMotion()` - Accessibility preference detection
+- `useKeyboardShortcuts({ shortcuts, enabled })` - Global keyboard shortcut handling
+- `createAppShortcuts(handlers)` - Preset shortcuts for Cmd+N, Cmd+B, Cmd+1/2/3
+
+## Message Normalization
+
+The chat API (`src/app/api/chat/route.ts`) normalizes messages before sending to any provider:
+- Filters out `tool` role messages (cause validation errors when loaded from DB)
+- Extracts text content from assistant messages (skips tool-only responses)
+- Handles multiple message formats: string content, content arrays, parts arrays
+- Works across all providers: Anthropic, OpenAI, Google AI, OpenRouter, xAI
