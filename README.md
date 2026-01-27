@@ -98,6 +98,11 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - **Settings Management** - Add and manage API keys for multiple providers
 - **Export Code** - Download generated components
 - **Error Handling** - Comprehensive error boundaries and user feedback
+- **Keyboard Shortcuts** - Cmd+N (new project), Cmd+B (toggle sidebar), Cmd+1/2/3 (switch views)
+- **Mobile Responsive** - Adaptive layout with tab-based navigation on mobile
+- **Toast Notifications** - Success, error, info, and warning notifications
+- **Guided Onboarding** - Welcome tooltips for new users
+- **Accessibility** - Touch targets, reduced motion support, ARIA labels
 
 ## Usage
 
@@ -122,6 +127,16 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 5. **Manage & Export**
    - Rename or delete projects from the sidebar
    - Authenticated users can save projects for later
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd/Ctrl + N` | Create new project |
+| `Cmd/Ctrl + B` | Toggle sidebar |
+| `Cmd/Ctrl + 1` | Switch to Chat view |
+| `Cmd/Ctrl + 2` | Switch to Code view |
+| `Cmd/Ctrl + 3` | Switch to Preview view |
    - Export generated code to use in your projects
 
 ## Tech Stack

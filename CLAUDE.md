@@ -73,12 +73,21 @@ Three main flows interconnect:
 - `src/app/layout.tsx` - Root layout with `suppressHydrationWarning` for browser extension compatibility
 - `src/components/chat/` - Chat UI: message list, markdown rendering, input with demo mode blocking
 - `src/components/editor/` - Code UI: Monaco editor, file tree navigation, provider selector
-- `src/components/editor/ProviderSelector.tsx` - Dropdown to select AI provider and model per project
+- `src/components/editor/ProviderSelector.tsx` - Dropdown to select AI provider and model per project with health indicators
 - `src/components/preview/PreviewFrame.tsx` - Live preview iframe with sandbox security
-- `src/components/auth/` - Auth forms: sign in/up
+- `src/components/auth/` - Auth forms: sign in/up with validation
 - `src/components/projects/ProjectList.tsx` - Project sidebar with rename, delete, delete all actions
-- `src/components/settings/SettingsDialog.tsx` - Dialog for managing user API keys across providers
+- `src/components/settings/SettingsDialog.tsx` - Dialog for managing user API keys with validation
 - `src/components/providers/theme-provider.tsx` - Theme context for dark/light mode
+- `src/components/layout/MobileLayout.tsx` - Responsive mobile layout with tab navigation
+- `src/components/onboarding/WelcomeTooltip.tsx` - Guided onboarding tooltips with localStorage persistence
+
+**UI Components** (`src/components/ui/`):
+- `toast.tsx` - Toast notification system with `useToast()` hook (success, error, info, warning)
+- `skeleton.tsx` - Loading skeletons: `MessageSkeleton`, `ProjectSkeleton`, `FileTreeSkeleton`, `PreviewSkeleton`, `CodeEditorSkeleton`
+- `tooltip.tsx` - Tooltip component using Radix UI
+- `animated-checkmark.tsx` - Animated success checkmark for confirmations
+- `button.tsx`, `command.tsx`, `dialog.tsx`, etc. - Radix UI primitives
 
 **Core Utilities**:
 - `src/lib/file-system.ts` - VirtualFileSystem class with security limits (path validation, size limits, extension whitelist)
@@ -185,7 +194,24 @@ Three main flows interconnect:
 **Provider Registry** (`src/lib/providers/index.ts`):
 - Defines supported AI providers: Anthropic, OpenAI, Google AI, OpenRouter, xAI (Grok)
 - Each provider has: name, available models, default model, environment variable key
-- Exports type-safe `ProviderId` and utilities: `getDefaultModel()`, `getModelConfig()`, `isValidProvider()`
+- All providers have `supportsTools: true` for tool-based code generation
+
+**Available Models**:
+| Provider | Models | Default |
+|----------|--------|---------|
+| Anthropic | claude-sonnet-4-20250514, claude-haiku-4.5-20250520, claude-opus-4-20250514 | claude-sonnet-4-20250514 |
+| OpenAI | gpt-4o, gpt-4o-mini, gpt-4-turbo | gpt-4o |
+| Google AI | gemini-2.0-flash-exp, gemini-1.5-pro, gemini-1.5-flash | gemini-2.0-flash-exp |
+| OpenRouter | anthropic/claude-sonnet-4, openai/gpt-4o, google/gemini-2.0-flash-exp | anthropic/claude-sonnet-4 |
+| xAI | grok-2, grok-2-mini | grok-2 |
+
+**Provider Utility Functions** (`src/lib/provider.ts`):
+- `getLanguageModel(providerId)` - Returns Vercel AI SDK language model
+- `hasApiKey(providerId, userApiKey?)` - Checks if API key is available
+- `getApiKey(providerId, userApiKey?)` - Gets API key (env or user-stored)
+- `isMockProvider(providerId, userApiKey?)` - Checks if using mock provider
+- `getConfiguredProviders()` - Lists providers with available keys
+- `getProviderIds()` - Returns all provider IDs
 
 **API Key Management**:
 - **Priority order**: Environment variable → User-stored key → Mock provider
