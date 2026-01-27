@@ -126,15 +126,14 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Tech Stack
 
-- **Frontend:** React 19, Next.js 15 (App Router), TypeScript
+- **Frontend:** React 19, Next.js 15.5, TypeScript
 - **Styling:** Tailwind CSS v4, Radix UI components, next-themes
-- **AI Providers:**
-  - Anthropic Claude (Sonnet, Haiku, Opus)
-  - OpenAI (GPT-4o, GPT-4o Mini, GPT-4 Turbo)
-  - Google AI (Gemini 2.0 Flash, Gemini 1.5 Pro/Flash)
-  - OpenRouter (Multi-provider access)
-  - xAI (Grok 2, Grok 2 Mini)
-  - Vercel AI SDK for unified interface
+- **AI Integration:** Vercel AI SDK v6 (unified multi-provider interface)
+  - @ai-sdk/anthropic v3 - Claude (Sonnet, Haiku, Opus)
+  - @ai-sdk/openai v3 - GPT-4o, GPT-4o Mini, GPT-4 Turbo
+  - @ai-sdk/google v3 - Gemini 2.0 Flash, Gemini 1.5 Pro/Flash
+  - @ai-sdk/xai v3 - Grok 2, Grok 2 Mini
+  - OpenRouter - Multi-provider access
 - **Database:** Prisma ORM with SQLite
 - **Security:** AES-256-GCM encryption for API keys, scrypt key derivation
 - **Code Editor:** Monaco Editor, Babel standalone (JSX transform)
